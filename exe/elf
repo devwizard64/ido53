@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-import os
 import struct
-import subprocess
 
 gpr = [
     "0",    "at",   "v0",   "v1",
@@ -116,7 +114,7 @@ def op_unpack():
     global inst_fd
     global inst_bdst
     global inst_jdst
-    inst, = struct.unpack(">I", data[".text"][addr-start : addr-start + 4])
+    inst, = struct.unpack(">I", app_text[addr-start : addr-start + 4])
     inst_op   = inst >> 26 & 0x3F
     inst_rs   = inst >> 21 & 0x1F
     inst_rt   = inst >> 16 & 0x1F
@@ -886,18 +884,14 @@ def e_jalr(rs):         return e_reg( 0, rs,  0, 31,  0,  9)
 def e_nop():            return e_reg( 0,  0,  0,  0,  0,  0)
 
 def patch(symbol, callback):
-    global data
+    global app_text
     if symbol in symtab:
         i = symtab[symbol] - start
         x = B"".join([struct.pack(">I", x) for x in callback()])
-        data[".text"] = data[".text"][:i] + x + data[".text"][i+len(x):]
-
-prefix = "mips-linux-gnu-"
-objcopy = prefix + "objcopy"
-readelf = prefix + "readelf"
+        app_text = app_text[:i] + x + app_text[i+len(x):]
 
 def readsym(fn, callback):
-    data = subprocess.check_output([readelf, "-W", "-s", fn]).decode()
+    with open(fn, "r") as f: data = f.read()
     for line in data.split("\n"):
         if ":" in line:
             x = line.split()
@@ -939,13 +933,13 @@ def readsym_ext(addr, ndx, name):
             }: addrtbl[addr] = "lib_" + name
 
 def main(argv):
+    global app_text
+    global app_data
     global symtab
     global addrtbl
     global nametbl
     global undtbl
-    global app_data
     global btbl
-    global data
     global start
     global addr_s
     global addr
@@ -956,8 +950,10 @@ def main(argv):
     global jr
     global jal_addr
     if len(argv) < 3:
-        print("usage: %s <output> <input>" % argv[0])
+        print("usage: %s <output> <text> <data> <sym> [ext ...]" % argv[0])
         return 1
+    with open(argv[2], "rb") as f: app_text = f.read()
+    with open(argv[3], "rb") as f: app_data = f.read()
     symtab  = {}
     addrtbl = {}
     nametbl = {}
@@ -966,14 +962,10 @@ def main(argv):
         "errno",
         "__iob",
     }
-    readsym(argv[2], readsym_main)
-    for fn in argv[3:]: readsym(fn, readsym_ext)
-    data = {section: subprocess.check_output([
-        objcopy, "-j", section, "-O", "binary", argv[2], "/dev/stdout"
-    ]) for section in (".text", ".data", ".rodata", ".got")}
-    app_data = data[".data"] + data[".rodata"] + data[".got"]
+    readsym(argv[4], readsym_main)
+    for fn in argv[5:]: readsym(fn, readsym_ext)
     start = symtab[".text"]
-    end   = start + len(data[".text"])
+    end   = start + len(app_text)
     patch("xmalloc", lambda: (
         e_la_u( 5, symtab["malloc_scb"]),
         e_la_u(25, symtab["alloc_new"]),

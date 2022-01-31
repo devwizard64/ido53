@@ -171,7 +171,7 @@ CCFLAG  := -fno-pie -fno-strict-aliasing -D__MMAP__ -O2 -Wall -Wextra
 WFLAG   := -Wno-uninitialized -Wno-type-limits -Wno-tautological-compare
 
 .PHONY: default
-default: $(ELF) err.english.cc
+default: $(ELF)
 
 build/libapp.a: $(SRC_OBJ) | build
 	$(AR) rc $@ $^
@@ -188,17 +188,14 @@ $(OBJ):
 build/%.o: build/%.c | build
 	$(CC) $(CCFLAG) $(WFLAG) -Isrc -c -o $@ $<
 
-$(SRC): root/lib/libc.so.1
-build/cfe.c: root/lib/libmalloc.so
-build/%.c: root/usr/lib/% | build
+$(SRC): donor/libc.so.1.sym
+build/cfe.c: donor/libmalloc.so.sym
+build/%.c: donor/%.text.bin donor/%.data.bin donor/%.sym | build
 	exe/elf $@ $^
-
-err.english.cc: root/usr/lib/err.english.cc
-	cp $< $@
 
 build build/src:
 	mkdir -p $@
 
 .PHONY: clean
 clean:
-	rm -rf build $(ELF) err.english.cc
+	rm -rf build $(ELF)
