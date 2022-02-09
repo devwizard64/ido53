@@ -191,7 +191,7 @@ build/%.o: build/%.c | build
 $(SRC): donor/libc.so.1.sym
 build/cfe.c: donor/libmalloc.so.sym
 build/%.c: donor/%.text.bin donor/%.data.bin donor/%.sym | build
-	exe/elf $@ $^
+	tools/elf $@ $^
 
 build build/src:
 	mkdir -p $@
