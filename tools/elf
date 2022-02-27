@@ -1040,7 +1040,7 @@ def main(argv):
         "};\n"
     )
     app_c += """
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
     CPU cpu;
     int_setexecpath(argv[0]);

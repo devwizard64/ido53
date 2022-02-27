@@ -173,6 +173,10 @@ WFLAG   := -Wno-uninitialized -Wno-type-limits -Wno-tautological-compare
 .PHONY: default
 default: $(ELF)
 
+.PHONY: clean
+clean:
+	rm -f -r build $(ELF)
+
 build/libapp.a: $(SRC_OBJ) | build
 	$(AR) rc $@ $^
 
@@ -182,7 +186,7 @@ build/src/%.o: src/%.c | build/src
 
 $(ELF):
 %: build/%.o build/libapp.a | build
-	$(CC) -s -no-pie -o $@ $< -Lbuild -lapp
+	$(CC) -no-pie -s -o $@ $< -Lbuild -lapp
 
 $(OBJ):
 build/%.o: build/%.c | build
@@ -195,7 +199,3 @@ build/%.c: donor/%.text.bin donor/%.data.bin donor/%.sym | build
 
 build build/src:
 	mkdir -p $@
-
-.PHONY: clean
-clean:
-	rm -rf build $(ELF)
