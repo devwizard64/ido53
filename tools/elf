@@ -344,6 +344,9 @@ def op_b():
                     0x17: ">",
                 }[inst_op]
             bc = "%s %s %s" % (rs, op, rt)
+            if rs == rt:
+                if op in {"==", "<=", ">="}: bc = "1"
+                if op in {"!=", "<",  ">" }: bc = "0"
         bdst = inst_bdst
     btbl.add(bdst)
     addr += 4
@@ -386,6 +389,17 @@ def op_arithi():
     global reg_flag
     global jal_addr
     reg_flag |= 1 << inst_rt
+    op, t = {
+        0x08: ("+", ""),
+        0x09: ("+", ""),
+        0x0A: ("<", ""),
+        0x0B: ("<", "(u32)"),
+        0x0C: ("&", ""),
+        0x0D: ("|", ""),
+        0x0E: ("^", ""),
+    }[inst_op]
+    rs = gpr[inst_rs]
+    rt = gpr[inst_rt]
     if inst_rt == 25:
         if inst_op == 0x09:
             if jal_addr != None: jal_addr += inst_imms
@@ -393,24 +407,14 @@ def op_arithi():
             jal_addr = None
     # sltiu
     if inst_op == 0x0B:
+        if inst_imms == 0: return [(addr, "    %s = 0;\n" % rt)], False
         imm = "0x%04XU" % (inst_imms & 0xFFFFFFFF)
     # andi, ori, xori
     elif inst_op in {0x0C, 0x0D, 0x0E}:
         imm = "0x%04XU" % inst_immu
     else:
         imm = "(s16)0x%04X" % inst_immu
-    op, s, e = {
-        0x08: ("+", "", ""),
-        0x09: ("+", "", ""),
-        0x0A: ("<", "", ""),
-        0x0B: ("<", "(u32)", ""),
-        0x0C: ("&", "", ""),
-        0x0D: ("|", "", ""),
-        0x0E: ("^", "", ""),
-    }[inst_op]
-    rs = gpr[inst_rs]
-    rt = gpr[inst_rt]
-    line = "    %s = %s%s %s %s%s;\n" % (rt, s, rs, op, imm, e)
+    line = "    %s = %s%s %s %s;\n" % (rt, t, rs, op, imm)
     return [(addr, line)], False
 
 def op_lui():

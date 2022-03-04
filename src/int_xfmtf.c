@@ -133,7 +133,7 @@ int int_vxprintf(XFMTF *xprintf, void *p, PTR str, PTR arg)
                     arg += 4;
                     str = x != NULLPTR ? int_readstr(x) : NULL;
                     n += xprintf(p, fmt, str);
-                    if (str != NULL) int_freestr(str);
+                    if (str != NULL) {int_freestr(str);}
                     break;
                 }
                 case FMT_NO:

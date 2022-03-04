@@ -168,7 +168,7 @@ CC      := cc
 AR      := ar
 
 CCFLAG  := -fno-pie -fno-strict-aliasing -DMMAP -DALLOCA -O2 -Wall -Wextra
-WFLAG   := -Wno-uninitialized -Wno-type-limits -Wno-tautological-compare
+WFLAG   := -Wno-uninitialized
 
 .PHONY: default
 default: $(ELF)
