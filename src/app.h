@@ -91,7 +91,7 @@ typedef u32 PTR;
 #endif
 #define AX_W    0
 
-#ifdef __MMAP__
+#ifdef MMAP
 #define __tlb(addr) ((void *)(uintptr_t)(PTR)(addr))
 #define __ptr(addr) ((PTR)(uintptr_t)(addr))
 #else
@@ -239,17 +239,36 @@ flushstr:   writeback readstr
 #define int_strncpy(dst, src, size) strncpy(cpu_ptr(dst), cpu_ptr(src), size)
 #define int_strlen(str)         strlen(cpu_ptr(str))
 #else
-extern void *int_readmem(PTR ptr, int size);
+#ifdef ALLOCA
+#define int_readmem(ptr, size)  int_memrd(alloca(size), ptr, size)
+#define int_alcmem(ptr, size)   alloca(size)
+#define int_writemem(dst, src, size)    int_memwr(dst, src, size)
+#define int_flushmem(dst, src, size)    int_memwr(dst, src, size)
+#define int_freemem(ptr)
+
+#define int_readstr(str)        int_strrd(alloca(int_strlen(str)+1), str)
+#define int_alcstr(str)         int_strrd(malloc(int_strlen(str)+1), str)
+#define int_writestr(dst, src)  int_strwr(dst, src)
+#define int_flushstr(dst, src)  int_strwr(dst, src)
+#define int_freestr(str)
+#else
+#define int_readmem(ptr, size)  int_memrd(malloc(size), ptr, size)
 #define int_alcmem(ptr, size)   malloc(size)
-extern void int_writemem(PTR dst, const char *src, int size);
-#define int_flushmem(dst, src, size)    int_writemem(dst, src, size)
+#define int_writemem(dst, src, size)    int_memwr(dst, src, size)
+#define int_flushmem(dst, src, size)    int_memwr(dst, src, size)
 #define int_freemem(ptr)        free(ptr)
 
-#define int_readstr(str)        ((char *)int_readmem(str, int_strlen(str)+1))
-#define int_alcstr(str)         int_readstr(str)
-extern void int_writestr(PTR dst, const char *src);
-#define int_flushstr(dst, src)  int_writestr(dst, src)
+#define int_readstr(str)        int_strrd(malloc(int_strlen(str)+1), str)
+#define int_alcstr(str)         int_strrd(malloc(int_strlen(str)+1), str)
+#define int_writestr(dst, src)  int_strwr(dst, src)
+#define int_flushstr(dst, src)  int_strwr(dst, src)
 #define int_freestr(str)        free(str)
+#endif
+
+extern char *int_memrd(char *dst, PTR src, int size);
+extern void int_memwr(PTR dst, const char *src, int size);
+extern char *int_strrd(char *dst, PTR src);
+extern void int_strwr(PTR dst, const char *src);
 
 extern void int_memcpy(PTR dst, PTR src, int size);
 extern void int_memset(PTR dst, int c, int size);

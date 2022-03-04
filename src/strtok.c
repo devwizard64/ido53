@@ -14,8 +14,8 @@ void lib_strtok(CPU *cpu)
     if (a0 != NULLPTR)
     {
         ptr = a0;
-        if (str != NULL) int_freestr(str);
-        tok = str = int_readstr(ptr);
+        if (str != NULL) free(str);
+        tok = str = int_alcstr(ptr);
     }
     else
     {

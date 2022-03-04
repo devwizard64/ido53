@@ -1,6 +1,6 @@
 #include "app.h"
 
-#ifndef __MMAP__
+#ifndef MMAP
 u8 cpu_mem[MEM_SIZE];
 #endif
 

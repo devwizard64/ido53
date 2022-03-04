@@ -4,7 +4,7 @@ PTR int_sbrk(size_t size)
 {
     static PTR brk = MEM_START;
     PTR ptr = brk;
-#ifdef __MMAP__
+#ifdef MMAP
     if (mmap(
         cpu_ptr(ptr), size,
         PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0

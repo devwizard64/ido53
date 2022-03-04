@@ -1,22 +1,30 @@
 #include "app.h"
 
 #ifndef __EB__
-void *int_readmem(PTR ptr, int size)
+char *int_memrd(char *dst, PTR src, int size)
 {
-    char *data = malloc(size);
     int i;
-    for (i = 0; i < size; i++) data[i] = *cpu_s8(ptr+i);
-    return data;
+    for (i = 0; i < size; i++) dst[i] = *cpu_s8(src+i);
+    return dst;
 }
 
-void int_writemem(PTR dst, const char *src, int size)
+void int_memwr(PTR dst, const char *src, int size)
 {
-    while (size-- != 0) *cpu_s8(dst++) = *src++;
+    int i;
+    for (i = 0; i < size; i++) *cpu_s8(dst+i) = src[i];
 }
 
-void int_writestr(PTR dst, const char *src)
+char *int_strrd(char *dst, PTR src)
 {
-    while (true) {if ((*cpu_s8(dst++) = *src++) == 0) break;}
+    int i;
+    for (i = 0; (dst[i] = *cpu_s8(src+i)) != 0; i++);
+    return dst;
+}
+
+void int_strwr(PTR dst, const char *src)
+{
+    int i;
+    for (i = 0; (*cpu_s8(dst+i) = src[i]) != 0; i++);
 }
 
 void int_memcpy(PTR dst, PTR src, int size)
