@@ -170,7 +170,7 @@ CCFLAG  := -fno-pie -fno-strict-aliasing -DMMAP -DALLOCA -O2 -Wall -Wextra
 WFLAG   := -Wno-uninitialized
 
 .PHONY: default
-default: $(BIN)
+default: $(BIN) bin/err.english.cc
 
 .PHONY: clean
 clean:
@@ -192,6 +192,9 @@ build/%.c: donor/%.text.bin donor/%.data.bin donor/%.sym | build
 $(SRC_OBJ): src/app.h
 build/src/%.o: src/%.c | build/src
 	$(CC) $(CCFLAG) -c -o $@ $<
+
+bin/%: donor/%
+	cp -f $< $@
 
 bin build build/src:
 	mkdir -p $@
