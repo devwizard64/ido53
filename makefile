@@ -161,32 +161,24 @@ SRC_OBJ := \
 	build/src/execve.o
 
 ELF := ugen ujoin uld umerge uopt usplit cc cfe as1
+BIN := $(addprefix bin/,$(ELF))
 OBJ := $(addprefix build/,$(addsuffix .o,$(ELF)))
 SRC := $(addprefix build/,$(addsuffix .c,$(ELF)))
 
 CC      := cc
-AR      := ar
-
 CCFLAG  := -fno-pie -fno-strict-aliasing -DMMAP -DALLOCA -O2 -Wall -Wextra
 WFLAG   := -Wno-uninitialized
 
 .PHONY: default
-default: $(ELF)
+default: $(BIN)
 
 .PHONY: clean
 clean:
-	rm -f -r build $(ELF)
+	rm -f -r bin build
 
-build/libapp.a: $(SRC_OBJ) | build
-	$(AR) rc $@ $^
-
-$(SRC_OBJ): src/app.h
-build/src/%.o: src/%.c | build/src
-	$(CC) $(CCFLAG) -c -o $@ $<
-
-$(ELF):
-%: build/%.o build/libapp.a | build
-	$(CC) -no-pie -s -o $@ $< -Lbuild -lapp
+$(BIN):
+bin/%: build/%.o $(SRC_OBJ) | bin
+	$(CC) -no-pie -s -o $@ $^
 
 $(OBJ):
 build/%.o: build/%.c | build
@@ -197,5 +189,9 @@ build/cfe.c: donor/libmalloc.so.sym
 build/%.c: donor/%.text.bin donor/%.data.bin donor/%.sym | build
 	tools/elf $@ $^
 
-build build/src:
+$(SRC_OBJ): src/app.h
+build/src/%.o: src/%.c | build/src
+	$(CC) $(CCFLAG) -c -o $@ $<
+
+bin build build/src:
 	mkdir -p $@
