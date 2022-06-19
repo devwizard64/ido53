@@ -82,7 +82,7 @@ static int fmt_code(char c)
 int int_vxprintf(XFMTF *xprintf, void *p, PTR str, PTR arg)
 {
     int n = 0;
-    while (true)
+    for (;;)
     {
         char c = *cpu_s8(str++);
         if (c == 0) break;
@@ -158,7 +158,7 @@ int int_vfprintf(IRIX_FILE *f, PTR str, PTR arg)
 int int_vfscanf(IRIX_FILE *f, PTR str, PTR arg)
 {
     int n = 0;
-    while (true)
+    for (;;)
     {
         char c = *cpu_s8(str++);
         if (c == 0) break;
@@ -178,7 +178,7 @@ int int_vfscanf(IRIX_FILE *f, PTR str, PTR arg)
             if (code == FMT_PERCENT) goto percent;
             *s++ = 0;
             i = 0;
-            while (true)
+            for (;;)
             {
                 int x = int_fgetc(f);
                 if (x == EOF)

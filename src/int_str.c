@@ -29,22 +29,32 @@ void int_strwr(PTR dst, const char *src)
 
 void int_memcpy(PTR dst, PTR src, int size)
 {
-    while (size-- != 0) *cpu_s8(dst++) = *cpu_s8(src++);
+    int i;
+    for (i = 0; i < size; i++) *cpu_s8(dst+i) = *cpu_s8(src+i);
 }
 
 void int_memset(PTR dst, int c, int size)
 {
-    while (size-- != 0) *cpu_s8(dst++) = c;
+    int i;
+    for (i = 0; i < size; i++) *cpu_s8(dst+i) = c;
 }
 
 void int_strcpy(PTR dst, PTR src)
 {
-    while (true)        {if ((*cpu_s8(dst++) = *cpu_s8(src++)) == 0) break;}
+    int i;
+    for (i = 0;; i++)
+    {
+        if ((*cpu_s8(dst+i) = *cpu_s8(src+i)) == 0) break;
+    }
 }
 
 void int_strncpy(PTR dst, PTR src, int size)
 {
-    while (size-- != 0) {if ((*cpu_s8(dst++) = *cpu_s8(src++)) == 0) break;}
+    int i;
+    for (i = 0; i < size; i++)
+    {
+        if ((*cpu_s8(dst+i) = *cpu_s8(src+i)) == 0) break;
+    }
 }
 
 int int_strlen(PTR str)

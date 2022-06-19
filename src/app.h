@@ -20,9 +20,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#define false   0
-#define true    1
-
 #ifdef WIN32
 #define SEP     "\\"
 #else
@@ -287,7 +284,7 @@ extern PTR int_writearg(int argc, char **argv);
 
 extern void int_cinit(PTR _end, PTR _ctype, PTR _errno, PTR _iob);
 
-extern PTR int_sbrk(size_t size);
+extern PTR int_sbrk(intptr_t increment);
 
 extern PTR int_malloc(size_t size);
 extern void int_free(PTR ptr);

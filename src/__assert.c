@@ -7,7 +7,7 @@ void lib___assert(CPU *cpu)
     char *file = int_readstr(a1);
     fprintf(
         stderr, "Assertion failed: %s, file %s, line %u\n",
-        assertion, file, a2
+        assertion, file, (u32)a2
     );
     int_freestr(assertion);
     int_freestr(file);
