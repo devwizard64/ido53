@@ -2,6 +2,6 @@
 
 void lib_gets(CPU *cpu)
 {
-    (void)cpu;
-    eprint("gets() not implemented\n");
+	(void)cpu;
+	eprint("gets() not implemented\n");
 }

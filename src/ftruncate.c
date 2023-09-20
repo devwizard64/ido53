@@ -2,6 +2,6 @@
 
 void lib_ftruncate(CPU *cpu)
 {
-    (void)cpu;
-    eprint("ftruncate() not implemented\n");
+	(void)cpu;
+	eprint("ftruncate() not implemented\n");
 }

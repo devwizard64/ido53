@@ -2,6 +2,6 @@
 
 void lib_kill(CPU *cpu)
 {
-    (void)cpu;
-    eprint("kill() not implemented\n");
+	(void)cpu;
+	eprint("kill() not implemented\n");
 }

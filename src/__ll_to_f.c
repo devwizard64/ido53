@@ -2,5 +2,5 @@
 
 void lib___ll_to_f(CPU *cpu)
 {
-    f0.f[0^IX] = (s64)a0 << 32 | (u32)a1;
+	f0.f[0^IX] = (int64_t)a0 << 32 | (uint32_t)a1;
 }

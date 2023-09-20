@@ -2,6 +2,6 @@
 
 void lib__doprnt(CPU *cpu)
 {
-    (void)cpu;
-    eprint("_doprnt() not implemented\n");
+	(void)cpu;
+	eprint("_doprnt() not implemented\n");
 }

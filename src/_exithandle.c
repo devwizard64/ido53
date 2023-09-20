@@ -1,5 +1,5 @@
 #include "app.h"
 
-void lib__exithandle(unused CPU *cpu)
+void lib__exithandle(UNUSED CPU *cpu)
 {
 }

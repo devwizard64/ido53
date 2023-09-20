@@ -2,6 +2,6 @@
 
 void lib_strerror(CPU *cpu)
 {
-    (void)cpu;
-    eprint("strerror() not implemented\n");
+	(void)cpu;
+	eprint("strerror() not implemented\n");
 }

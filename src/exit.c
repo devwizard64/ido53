@@ -2,5 +2,5 @@
 
 void lib_exit(CPU *cpu)
 {
-    exit(a0);
+	exit(a0);
 }

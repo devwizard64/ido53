@@ -2,6 +2,6 @@
 
 void lib___semgetc(CPU *cpu)
 {
-    (void)cpu;
-    eprint("getc() not implemented\n");
+	(void)cpu;
+	eprint("getc() not implemented\n");
 }

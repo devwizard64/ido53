@@ -2,6 +2,5 @@
 
 void lib___ll_to_d(CPU *cpu)
 {
-    (void)cpu;
-    eprint("__ll_to_d() not implemented\n");
+	f0.d = (int64_t)a0 << 32 | (uint32_t)a1;
 }

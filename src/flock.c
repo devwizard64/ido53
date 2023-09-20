@@ -2,6 +2,6 @@
 
 void lib_flock(CPU *cpu)
 {
-    (void)cpu;
-    eprint("flock() not implemented\n");
+	(void)cpu;
+	eprint("flock() not implemented\n");
 }

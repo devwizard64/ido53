@@ -2,6 +2,5 @@
 
 void lib_memccpy(CPU *cpu)
 {
-    (void)cpu;
-    eprint("memccpy() not implemented\n");
+	v0 = int_memccpy(a0, a1, a2, a3);
 }

@@ -2,6 +2,6 @@
 
 void lib_ldexp(CPU *cpu)
 {
-    (void)cpu;
-    eprint("ldexp() not implemented\n");
+	(void)cpu;
+	eprint("ldexp() not implemented\n");
 }

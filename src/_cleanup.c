@@ -1,5 +1,5 @@
 #include "app.h"
 
-void lib__cleanup(unused CPU *cpu)
+void lib__cleanup(UNUSED CPU *cpu)
 {
 }

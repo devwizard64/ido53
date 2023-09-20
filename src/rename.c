@@ -2,6 +2,6 @@
 
 void lib_rename(CPU *cpu)
 {
-    (void)cpu;
-    eprint("rename() not implemented\n");
+	(void)cpu;
+	eprint("rename() not implemented\n");
 }

@@ -2,5 +2,5 @@
 
 void lib_memcpy(CPU *cpu)
 {
-    int_memcpy(v0 = a0, a1, a2);
+	int_memmove(v0 = a0, a1, a2);
 }

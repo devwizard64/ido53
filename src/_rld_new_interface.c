@@ -2,5 +2,5 @@
 
 void lib__rld_new_interface(CPU *cpu)
 {
-    v0 = 0;
+	v0 = 0;
 }

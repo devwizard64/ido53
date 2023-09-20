@@ -2,6 +2,6 @@
 
 void lib_qsort(CPU *cpu)
 {
-    (void)cpu;
-    eprint("qsort() not implemented\n");
+	(void)cpu;
+	eprint("qsort() not implemented\n");
 }

@@ -2,6 +2,6 @@
 
 void lib_utime(CPU *cpu)
 {
-    (void)cpu;
-    eprint("utime() not implemented\n");
+	(void)cpu;
+	eprint("utime() not implemented\n");
 }

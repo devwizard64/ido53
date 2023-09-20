@@ -2,6 +2,6 @@
 
 void lib_munmap(CPU *cpu)
 {
-    (void)cpu;
-    eprint("munmap() not implemented\n");
+	(void)cpu;
+	eprint("munmap() not implemented\n");
 }

@@ -2,5 +2,5 @@
 
 void lib_strlen(CPU *cpu)
 {
-    v0 = int_strlen(a0);
+	v0 = int_strlen(a0);
 }

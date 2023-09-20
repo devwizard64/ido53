@@ -2,6 +2,6 @@
 
 void lib___semputc(CPU *cpu)
 {
-    (void)cpu;
-    eprint("putc() not implemented\n");
+	(void)cpu;
+	eprint("putc() not implemented\n");
 }

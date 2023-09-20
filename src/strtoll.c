@@ -2,6 +2,6 @@
 
 void lib_strtoll(CPU *cpu)
 {
-    (void)cpu;
-    eprint("strtoll() not implemented\n");
+	(void)cpu;
+	eprint("strtoll() not implemented\n");
 }

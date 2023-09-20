@@ -2,6 +2,6 @@
 
 void lib_mkstemp(CPU *cpu)
 {
-    (void)cpu;
-    eprint("mkstemp() not implemented\n");
+	(void)cpu;
+	eprint("mkstemp() not implemented\n");
 }

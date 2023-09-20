@@ -2,6 +2,6 @@
 
 void lib_cfree(CPU *cpu)
 {
-    (void)cpu;
-    eprint("cfree() not implemented\n");
+	(void)cpu;
+	eprint("cfree() not implemented\n");
 }

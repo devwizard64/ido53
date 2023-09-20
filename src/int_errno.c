@@ -1,3 +1,3 @@
 #include "app.h"
 
-s32 *errnop;
+int32_t *errnop;

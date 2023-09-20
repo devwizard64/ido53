@@ -2,6 +2,6 @@
 
 void lib_umask(CPU *cpu)
 {
-    LIB_CALL
-    v0 = umask(a0);
+	LIB_CALL
+	v0 = umask(a0);
 }

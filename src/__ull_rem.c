@@ -2,9 +2,9 @@
 
 void lib___ull_rem(CPU *cpu)
 {
-    u64 a = (u64)a0 << 32 | (u32)a1;
-    u64 b = (u64)a2 << 32 | (u32)a3;
-    u64 x = a % b;
-    v0 = x >> 32;
-    v1 = x >>  0;
+	uint64_t a = (uint64_t)a0 << 32 | (uint32_t)a1;
+	uint64_t b = (uint64_t)a2 << 32 | (uint32_t)a3;
+	uint64_t x = a % b;
+	v0 = x >> 32;
+	v1 = x >>  0;
 }

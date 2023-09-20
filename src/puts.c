@@ -2,6 +2,6 @@
 
 void lib_puts(CPU *cpu)
 {
-    (void)cpu;
-    eprint("puts() not implemented\n");
+	(void)cpu;
+	eprint("puts() not implemented\n");
 }

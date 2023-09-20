@@ -2,6 +2,6 @@
 
 void lib_getpid(CPU *cpu)
 {
-    (void)cpu;
-    eprint("getpid() not implemented\n");
+	(void)cpu;
+	eprint("getpid() not implemented\n");
 }

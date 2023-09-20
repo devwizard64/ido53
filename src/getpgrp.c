@@ -2,6 +2,6 @@
 
 void lib_getpgrp(CPU *cpu)
 {
-    (void)cpu;
-    eprint("getpgrp() not implemented\n");
+	(void)cpu;
+	eprint("getpgrp() not implemented\n");
 }

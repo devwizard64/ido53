@@ -2,5 +2,5 @@
 
 void lib_getenv(CPU *cpu)
 {
-    v0 = NULLPTR;
+	v0 = NULLPTR;
 }

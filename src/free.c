@@ -2,5 +2,5 @@
 
 void lib_free(CPU *cpu)
 {
-    int_free(a0);
+	int_free(a0);
 }

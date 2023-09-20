@@ -2,6 +2,6 @@
 
 void lib_ftell(CPU *cpu)
 {
-    (void)cpu;
-    eprint("ftell() not implemented\n");
+	(void)cpu;
+	eprint("ftell() not implemented\n");
 }
