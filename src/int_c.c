@@ -161,6 +161,6 @@ void int_cinit(PTR _end, PTR _ctype, PTR _errno, PTR _iob)
 	fileiob[1]._file = fileno(stdout);
 	fileiob[2]._cnt = filecnt[2] = 0;
 	fileiob[2]._ptr = fileiob[2]._base = NULLPTR;
-	fileiob[2]._flag = 0002 | 0004;
+	fileiob[2]._flag = 0002|0004;
 	fileiob[2]._file = fileno(stderr);
 }

@@ -7,8 +7,9 @@ void int_sig(int sig)
 {
 	CPU cpu;
 	sigsp += 0x4000;
-	cpu._a0 = sig;
+	memset(&cpu, 0, sizeof(CPU));
 	cpu._sp = sigsp-0x10;
+	cpu._a0 = sig;
 	__call(&cpu, sigtab[sig]);
 	sigsp -= 0x4000;
 }

@@ -3,11 +3,11 @@
 void lib_fgets(CPU *cpu)
 {
 	LIB_CALL
-	IRIX_FILE *f = cpu_ptr(a2);
+	IRIX_FILE *fp = cpu_ptr(a2);
 	v0 = a0;
 	while (--a1 > 0)
 	{
-		int c = int_fgetc(f);
+		int c = int_fgetc(fp);
 		if (c == EOF)
 		{
 			if (v0 == a0) v0 = NULLPTR;

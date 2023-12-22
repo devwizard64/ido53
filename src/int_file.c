@@ -3,7 +3,7 @@
 IRIX_FILE *fileiob;
 uint32_t filecnt[100];
 
-PTR int_fdopen(IRIX_FILE *f, int fd, const char *pathname, const char *mode)
+PTR int_fdopen(IRIX_FILE *fp, int fd, const char *pathname, const char *mode)
 {
 	char *w = strchr(mode, 'w');
 	char *a = strchr(mode, 'a');
@@ -15,111 +15,112 @@ PTR int_fdopen(IRIX_FILE *f, int fd, const char *pathname, const char *mode)
 	else        flags = O_RDONLY;
 	if (fd < 0)
 	{
-		if (w) flags |= O_CREAT | O_TRUNC;
-		if (a) flags |= O_CREAT | O_APPEND;
+		if (w) flags |= O_CREAT|O_TRUNC;
+		if (a) flags |= O_CREAT|O_APPEND;
 		fd = open(pathname, flags, 0666);
 		if (fd < 0) return NULLPTR;
 	}
-	if (!f)
+	if (!fp)
 	{
 		int i;
 		for (i = 3; i < 100; i++)
 		{
-			f = &fileiob[i];
-			if (f->_flag == 0) goto brk;
+			fp = &fileiob[i];
+			if (fp->_flag == 0) goto brk;
 		}
 		return NULLPTR;
 	brk:;
 	}
-	f->_file = fd;
-	f->_cnt = filecnt[f-fileiob] = 0;
-	f->_ptr = f->_base = NULLPTR;
+	fp->_file = fd;
+	fp->_cnt = filecnt[fp-fileiob] = 0;
+	fp->_ptr = fp->_base = NULLPTR;
 	switch (flags & O_ACCMODE)
 	{
-	case O_RDONLY: f->_flag = (int8_t)0001; break;
-	case O_WRONLY: f->_flag = (int8_t)0002; break;
-	case O_RDWR:   f->_flag = (int8_t)0200; break;
+	case O_RDONLY: fp->_flag = (int8_t)0001; break;
+	case O_WRONLY: fp->_flag = (int8_t)0002; break;
+	case O_RDWR:   fp->_flag = (int8_t)0200; break;
 	}
-	return __ptr(f);
+	return __ptr(fp);
 }
 
-int int_fclose(IRIX_FILE *f)
+int int_fclose(IRIX_FILE *fp)
 {
-	int_fflush(f);
-	if (f->_flag & 0010) int_free(f->_base);
-	f->_flag = 0;
-	return close(f->_file);
+	int_fflush(fp);
+	if (fp->_flag & 0010) int_free(fp->_base);
+	fp->_flag = 0;
+	return close(fp->_file);
 }
 
-static void int_falloc(IRIX_FILE *f)
+static void int_falloc(IRIX_FILE *fp)
 {
-	if (!f->_base)
+	if (!fp->_base)
 	{
-		f->_flag |= 0010;
-		f->_ptr = f->_base = int_malloc(f->_cnt = filecnt[f-fileiob] = 1024);
+		fp->_flag |= 0010;
+		fp->_cnt = filecnt[fp-fileiob] = 1024;
+		fp->_ptr = fp->_base = int_malloc(fp->_cnt);
 	}
 }
 
-int int_fflush(IRIX_FILE *f)
+int int_fflush(IRIX_FILE *fp)
 {
-	if (f->_base)
+	if (fp->_base)
 	{
-		if (f->_flag & 0002)
+		if (fp->_flag & 0002)
 		{
-			size_t cnt = f->_ptr - f->_base;
-			PTR ptr = f->_base;
+			size_t cnt = fp->_ptr - fp->_base;
+			PTR ptr = fp->_base;
 			while (cnt > 0)
 			{
 				void *buf = int_readmem(ptr, cnt);
-				ssize_t n = write(f->_file, buf, cnt);
+				ssize_t n = write(fp->_file, buf, cnt);
 				int_freemem(buf);
 				if (n < 0)
 				{
-					f->_flag |= 0040;
+					fp->_flag |= 0040;
 					return EOF;
 				}
 				ptr += n;
 				cnt -= n;
 			}
-			f->_cnt = filecnt[f-fileiob];
-			f->_ptr = f->_base;
+			fp->_cnt = filecnt[fp-fileiob];
+			fp->_ptr = fp->_base;
 		}
 	}
 	return 0;
 }
 
-int int_fseek(IRIX_FILE *f, long offset, int whence)
+int int_fseek(IRIX_FILE *fp, long offset, int whence)
 {
-	f->_flag &= ~0020;
-	if (f->_flag & 0001)
+	fp->_flag &= ~0020;
+	if (fp->_flag & 0001)
 	{
-		if (f->_base)
+		if (fp->_base)
 		{
-			if (whence == SEEK_CUR) offset -= f->_cnt;
+			if (whence == SEEK_CUR) offset -= fp->_cnt;
 		}
-		if (f->_flag & 0200) f->_flag &= ~0001;
+		if (fp->_flag & 0200) fp->_flag &= ~0001;
 	}
-	else if (f->_flag & (0002|0200))
+	else if (fp->_flag & (0002|0200))
 	{
-		int_fflush(f);
-		if (f->_flag & 0200) f->_flag &= ~0002;
+		int_fflush(fp);
+		if (fp->_flag & 0200) fp->_flag &= ~0002;
 	}
-	f->_cnt = 0;
-	if (lseek(f->_file, offset, whence) < 0) return EOF;
+	fp->_cnt = 0;
+	if (lseek(fp->_file, offset, whence) < 0) return EOF;
 	return 0;
 }
 
-int int_filbuf(IRIX_FILE *f)
+int int_filbuf(IRIX_FILE *fp)
 {
 	int c;
 	char *buf;
 	size_t count;
 	ssize_t n;
-	if (!(f->_flag & 0001))
+	if (!(fp->_flag & 0001))
 	{
-		if (f->_flag & 0200)
+		if (fp->_flag & 0200)
 		{
-			f->_flag |= 0001;
+			fp->_flag |= 0001;
 		}
 		else
 		{
@@ -127,52 +128,62 @@ int int_filbuf(IRIX_FILE *f)
 			return EOF;
 		}
 	}
-	int_falloc(f);
-	f->_cnt = 0;
-	count = filecnt[f-fileiob];
-	buf = int_alcmem(f->_base, count);
-	n = read(f->_file, buf, count);
+	int_falloc(fp);
+	fp->_cnt = 0;
+	count = filecnt[fp-fileiob];
+	buf = int_alcmem(fp->_base, count);
+	n = read(fp->_file, buf, count);
 	if (n > 0)
 	{
-		int_flushmem(f->_base, buf, n);
-		f->_cnt = n;
-		f->_ptr = f->_base;
-		--f->_cnt;
-		c = *cpu_u8(f->_ptr++);
+		int_flushmem(fp->_base, buf, n);
+		fp->_cnt = n;
+		fp->_ptr = fp->_base;
+		--fp->_cnt;
+		c = *cpu_u8(fp->_ptr++);
 	}
 	else if (n == 0)
 	{
-		f->_flag |= 0020;
+		fp->_flag |= 0020;
 		c = EOF;
 	}
 	else
 	{
-		f->_flag |= 0040;
+		fp->_flag |= 0040;
 		c = EOF;
 	}
 	int_freemem(buf);
 	return c;
 }
 
-int int_flsbuf(unsigned int c, IRIX_FILE *f)
+int int_flsbuf(unsigned int c, IRIX_FILE *fp)
 {
-	if (int_fflush(f)) return EOF;
-	int_falloc(f);
-	--f->_cnt;
-	*cpu_u8(f->_ptr++) = c;
-	if (f->_flag & 0004)
+	if (int_fflush(fp)) return EOF;
+	int_falloc(fp);
+	--fp->_cnt;
+	*cpu_u8(fp->_ptr++) = c;
+	if (fp->_flag & 0004)
 	{
-		if (int_fflush(f)) return EOF;
-		f->_cnt = 0;
+		if (int_fflush(fp)) return EOF;
+		fp->_cnt = 0;
 	}
 	return c;
 }
 
-int int_ungetc(int c, IRIX_FILE *f)
+int int_fgetc(IRIX_FILE *fp)
 {
-	if (c == EOF || f->_base == f->_ptr) return EOF;
-	f->_flag &= ~0020;
-	f->_ptr--;
-	f->_cnt++;
-	return *cpu_u8(f->_ptr) = c;
+	return int_getc(fp);
+}
+
+int int_fputc(int c, IRIX_FILE *fp)
+{
+	return int_putc(c, fp);
+}
+
+int int_ungetc(int c, IRIX_FILE *fp)
+{
+	if (c == EOF || fp->_base == fp->_ptr) return EOF;
+	fp->_flag &= ~0020;
+	fp->_ptr--;
+	fp->_cnt++;
+	return *cpu_u8(fp->_ptr) = c;
 }

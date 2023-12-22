@@ -158,10 +158,26 @@ reg_mask = (
 	1 <<  5 | # a1
 	1 <<  6 | # a2
 	1 <<  7 | # a3
+	1 << 16 | # s0
+	1 << 17 | # s1
+	1 << 18 | # s2
+	1 << 19 | # s3
+	1 << 20 | # s4
+	1 << 21 | # s5
+	1 << 22 | # s6
+	1 << 23 | # s7
 	1 << 29 | # sp
+	1 << 30 | # r30
+	1 << 31 | # ra
 	1 << 32 | # f0
 	1 << 38 | # f12
-	1 << 39   # f14
+	1 << 39 | # f14
+	1 << 42 | # f20
+	1 << 43 | # f22
+	1 << 44 | # f24
+	1 << 45 | # f26
+	1 << 46 | # f28
+	1 << 47   # f30
 )
 
 def lw(addr):
@@ -173,7 +189,7 @@ def lw_gp(inst):
 	return lw(symtab["_gp_disp"] + inst["imms"]) & 0xFFFFFFFF
 
 def op_clear(line, i):
-	line[i] = "}\n" if line[i].endswith("}\n") else ""
+	line[i] = "\t}\n" if line[i].endswith("}\n") else ""
 
 def op_unpack(addr):
 	i = addr - app.section[".text"].addr
@@ -338,7 +354,7 @@ def op_jalr(addr, line, inst):
 		elif ja-4*3 in addrtbl: ln = "\t%s(cpu);\n" % addrtbl[ja-4*3]
 	slot = []
 	end = op_process(addr+4, slot)
-	line.append(slot[0]+ln)
+	line.append(("\tra = 0x%08X;\n" % (addr+8))+slot[0]+ln)
 	line.append("")
 	return end
 
@@ -1164,6 +1180,7 @@ int main(int argc, char *argv[])
 	int_setexecpath(argv[0]);
 	int_cinit(0x%08X, 0x%08X, 0x%08X, 0x%08X);
 	memcpy(cpu_ptr(0x%08X), data, sizeof(data));
+	memset(&cpu, 0, sizeof(CPU));
 	cpu._sp = 0x%08X - 16;
 	cpu._a0 = *cpu_s32(0x%08X) = argc;
 	cpu._a1 = *cpu_s32(0x%08X) = int_writearg(argc, argv);
@@ -1171,14 +1188,11 @@ int main(int argc, char *argv[])
 	app_main(&cpu);
 	return cpu._v0;
 }""" % (
-	symtab["_end"],
-	symtab["__ctype"],
-	symtab["errno"],
-	symtab["__iob"],
-	symtab["_fdata"],
-	symtab["_fdata"],
-	symtab["__Argc"],
-	symtab["__Argv"],
+	symtab["_end"], symtab["__ctype"], symtab["errno"], symtab["__iob"], # cinit
+	app.section[".data"].addr, # data
+	symtab["_fdata"], # sp
+	symtab["__Argc"], # a0
+	symtab["__Argv"], # a1
 ))
 sym.append(text_e)
 for i in range(len(sym)-1):
@@ -1221,7 +1235,7 @@ for i in range(len(sym)-1):
 				if   flag & (1 << 25): x = "0x%08X" % addr_s
 				elif flag & (1 << 28): x = "0x%08X" % symtab["_gp_disp"]
 				elif flag & 0xFFFF00000000: x = "{0}"
-				else: x = "0x12345678"
+				else: x = "0"
 				print("\tUNUSED %s %s = %s;" % (t, r, x))
 	addr = addr_s
 	for ln in line:

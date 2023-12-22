@@ -2,7 +2,7 @@
 
 int xfprintf(void *p, const char *fmt, ...)
 {
-	IRIX_FILE *f = p;
+	IRIX_FILE *fp = p;
 	va_list arg;
 	char buf[32768];
 	int n;
@@ -10,7 +10,10 @@ int xfprintf(void *p, const char *fmt, ...)
 	va_start(arg, fmt);
 	n = vsprintf(buf, fmt, arg);
 	va_end(arg);
-	for (i = 0; i < n; i++) {if (int_fputc(buf[i], f) == EOF) break;}
+	for (i = 0; i < n; i++)
+	{
+		if (int_fputc(buf[i], fp) == EOF) break;
+	}
 	return n;
 }
 
@@ -150,12 +153,12 @@ int int_vxprintf(XFMTF *xprintf, void *p, PTR str, PTR arg)
 	return n;
 }
 
-int int_vfprintf(IRIX_FILE *f, PTR str, PTR arg)
+int int_vfprintf(IRIX_FILE *fp, PTR str, PTR arg)
 {
-	return int_vxprintf((XFMTF *)xfprintf, f, str, arg);
+	return int_vxprintf((XFMTF *)xfprintf, fp, str, arg);
 }
 
-int int_vfscanf(IRIX_FILE *f, PTR str, PTR arg)
+int int_vfscanf(IRIX_FILE *fp, PTR str, PTR arg)
 {
 	int i;
 	int n = 0;
@@ -180,7 +183,7 @@ int int_vfscanf(IRIX_FILE *f, PTR str, PTR arg)
 			i = 0;
 			for (;;)
 			{
-				int x = int_fgetc(f);
+				int x = int_fgetc(fp);
 				if (x == EOF)
 				{
 					if (i > 0) break;
@@ -190,7 +193,7 @@ int int_vfscanf(IRIX_FILE *f, PTR str, PTR arg)
 				{
 					if (i > 0)
 					{
-						int_ungetc(x, f);
+						int_ungetc(x, fp);
 						break;
 					}
 				}
@@ -234,7 +237,7 @@ int int_vfscanf(IRIX_FILE *f, PTR str, PTR arg)
 		{
 			int x;
 		percent:
-			x = int_fgetc(f);
+			x = int_fgetc(fp);
 			if (x == EOF || x != c) break;
 		}
 	}

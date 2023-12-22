@@ -45,7 +45,7 @@ typedef uint32_t PTR;
 
 #define wprint(...) fprintf(stderr, "warning: " __VA_ARGS__)
 #define eprint(...) {fprintf(stderr, "error: " __VA_ARGS__); eexit();}
-#ifdef __DEBUG__
+#ifdef DEBUG
 #define pdebug printf
 #define wdebug wprint
 #define edebug eprint
@@ -129,10 +129,26 @@ extern char cpu_mem[MEM_SIZE];
 #define a1  cpu->_a1
 #define a2  cpu->_a2
 #define a3  cpu->_a3
+#define s0  cpu->_s0
+#define s1  cpu->_s1
+#define s2  cpu->_s2
+#define s3  cpu->_s3
+#define s4  cpu->_s4
+#define s5  cpu->_s5
+#define s6  cpu->_s6
+#define s7  cpu->_s7
 #define sp  cpu->_sp
+#define r30 cpu->_r30
+#define ra  cpu->_ra
 #define f0  cpu->_f0
 #define f12 cpu->_f12
 #define f14 cpu->_f14
+#define f20 cpu->_f20
+#define f22 cpu->_f22
+#define f24 cpu->_f24
+#define f26 cpu->_f26
+#define f28 cpu->_f28
+#define f30 cpu->_f30
 
 typedef union
 {
@@ -151,10 +167,26 @@ typedef struct
 	int32_t _a1;
 	int32_t _a2;
 	int32_t _a3;
+	int32_t _s0;
+	int32_t _s1;
+	int32_t _s2;
+	int32_t _s3;
+	int32_t _s4;
+	int32_t _s5;
+	int32_t _s6;
+	int32_t _s7;
 	int32_t _sp;
+	int32_t _r30;
+	int32_t _ra;
 	REG _f0;
 	REG _f12;
 	REG _f14;
+	REG _f20;
+	REG _f22;
+	REG _f24;
+	REG _f26;
+	REG _f28;
+	REG _f30;
 }
 CPU;
 
@@ -295,25 +327,27 @@ IRIX_FILE;
 extern uint32_t filecnt[100];
 extern IRIX_FILE *fileiob;
 extern PTR int_fdopen(
-	IRIX_FILE *f, int fd, const char *pathname, const char *mode
+	IRIX_FILE *fp, int fd, const char *pathname, const char *mode
 );
-extern int int_fclose(IRIX_FILE *f);
-extern int int_fflush(IRIX_FILE *f);
-extern int int_fseek(IRIX_FILE *f, long offset, int whence);
-extern int int_filbuf(IRIX_FILE *f);
-extern int int_flsbuf(unsigned int c, IRIX_FILE *f);
-#define int_fgetc(f) \
-	(--(f)->_cnt < 0 ? int_filbuf(f) : (int)*cpu_u8((f)->_ptr++))
-#define int_fputc(c, f) \
-	(--(f)->_cnt < 0 ? int_flsbuf((unsigned char)(c), f) : \
-		(int)(*cpu_u8(f->_ptr++) = (unsigned char)(c)))
-extern int int_ungetc(int c, IRIX_FILE *f);
+extern int int_fclose(IRIX_FILE *fp);
+extern int int_fflush(IRIX_FILE *fp);
+extern int int_fseek(IRIX_FILE *fp, long offset, int whence);
+extern int int_filbuf(IRIX_FILE *fp);
+extern int int_flsbuf(unsigned int c, IRIX_FILE *fp);
+#define int_getc(fp) \
+	(--(fp)->_cnt < 0 ? int_filbuf(fp) : (int)*cpu_u8((fp)->_ptr++))
+#define int_putc(c, fp) \
+	(--(fp)->_cnt < 0 ? int_flsbuf((unsigned char)(c), fp) : \
+		(int)(*cpu_u8(fp->_ptr++) = (unsigned char)(c)))
+extern int int_fgetc(IRIX_FILE *fp);
+extern int int_fputc(int c, IRIX_FILE *fp);
+extern int int_ungetc(int c, IRIX_FILE *fp);
 
 typedef int XFMTF(void *p, const char *fmt, ...);
 extern int xfprintf(void *p, const char *fmt, ...);
 extern int xsprintf(void *p, const char *fmt, ...);
 extern int int_vxprintf(XFMTF *xprintf, void *p, PTR str, PTR arg);
-extern int int_vfscanf(IRIX_FILE *f, PTR str, PTR arg);
+extern int int_vfscanf(IRIX_FILE *fp, PTR str, PTR arg);
 
 struct irix_timestruc_t
 {
