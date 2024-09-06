@@ -1,5 +1,5 @@
 # ido53
-A static recompilation of IRIS Development Option version 5.3 for IRIX.  This is built on the pioneering technology from [metapro](https://github.com/devwizard64/metapro) used to recompile Nintendo 64 games.  It only provides the necessary software to compile *Super Mario 64* in my disassembly/decompilation of the game, which you can find [here](https://github.com/devwizard64/metarep/tree/main/UNSM).
+A static recompilation of IRIS Development Option version 5.3 for IRIX.  This is built on the pioneering technology from [metapro](https://github.com/devwizard64/metapro), my static recompilation project for Nintendo 64 games.  Currently, only the necessary software to compile *Super Mario 64* in [my disassembly/decompilation of the game](https://github.com/devwizard64/metarep/tree/main/UNSM) is provided.
 
 Static recompilation involves converting a binary into C code that may be compiled to run on a different platform.  This technique allows for optimization of the entire binary at compile time, removing the overhead of emulation and providing performance comparable to compiling the original source code.  The following describes the recompilation process in further detail:
 * The source binary is analyzed to find structural information, such as C function entry points.
