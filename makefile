@@ -11,6 +11,9 @@ SRC_OBJ := \
 	build/src/int_sig.o \
 	build/src/int_tree.o \
 	build/src/_rld_new_interface.o \
+	build/src/sqrt.o \
+	build/src/regcmp.o \
+	build/src/regex.o \
 	build/src/memcpy.o \
 	build/src/_doprnt.o \
 	build/src/strlen.o \
@@ -160,17 +163,19 @@ SRC_OBJ := \
 	build/src/_exit.o \
 	build/src/execve.o
 
-ELF := ugen ujoin uld umerge uopt usplit cc cfe as1
+ELF := ugen ujoin uld umerge uopt usplit cc cfe as0 as1
 BIN := $(addprefix bin/,$(ELF))
 OBJ := $(addprefix build/,$(addsuffix .o,$(ELF)))
 SRC := $(addprefix build/,$(addsuffix .c,$(ELF)))
 
 CC = gcc
-CPPFLAGS = -DMMAP -DALLOCA
+#CPPFLAGS = -DALLOCA -DMMAP
+CPPFLAGS = -DALLOCA
 CFLAGS = -fno-pie -fno-strict-aliasing -O2 -Wall -Wextra
+LDFLAGS = -no-pie -s
 
 .PHONY: default
-default: $(BIN) bin/err.english.cc
+default: $(BIN) bin/ld bin/err.english.cc
 
 .PHONY: clean
 clean:
@@ -179,7 +184,7 @@ clean:
 $(BIN):
 bin/%: build/%.o $(SRC_OBJ)
 	@mkdir -p $(dir $@)
-	$(CC) -no-pie -s -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^
 
 $(OBJ):
 $(OBJ): CPPFLAGS += -Isrc
@@ -189,7 +194,10 @@ build/%.o: build/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 $(SRC): donor/libc.so.1
+build/uld.c: donor/libgen.so
+build/umerge.c: donor/libm.so
 build/cfe.c: donor/libmalloc.so
+build/as0.c build/as1.c: donor/libexc.so
 build/%.c: donor/%
 	@mkdir -p $(dir $@)
 	tools/elf $^ > $@
@@ -204,3 +212,6 @@ build/src/%.o: src/%.c
 bin/%: donor/%
 	@mkdir -p $(dir $@)
 	cp -f $< $@
+
+bin/ld: bin/uld
+	ln -s uld $@

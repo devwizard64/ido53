@@ -101,7 +101,7 @@ static char *relpath;
 void int_setexecpath(const char *path)
 {
 	exepath = strdup(path);
-	*strrchr(exepath, SEP[0]) = 0;
+	*strrchr(exepath, SEP[0]) = '\0';
 #if 0
 	relpath = malloc(strlen(exepath)+8);
 	strcpy(relpath, exepath);
@@ -114,9 +114,10 @@ char *int_cvtpath(char *str)
 	char *path;
 	if (!strncmp(str, "/usr/lib/", 9))
 	{
-		path = malloc(strlen(exepath)+strlen(str)-8 + 1);
+		str += 8;
+		path = malloc(strlen(exepath)+strlen(str)+1);
 		strcpy(path, exepath);
-		strcat(path, &str[8]);
+		strcat(path, str);
 	}
 #if 0
 	else if (!strncmp(str, relpath, strlen(relpath)))
@@ -143,14 +144,13 @@ char *int_readpath(PTR ptr)
 
 char **int_readarg(PTR ptr)
 {
-	PTR *arg = cpu_ptr(ptr);
+	int i, argc;
 	char **argv;
-	int argc;
-	int i;
+	PTR *arg = cpu_ptr(ptr);
 	for (argc = 0; arg[argc]; argc++);
 	argv = malloc(sizeof(char *) * (argc+1));
 	for (i = 0; i < argc; i++) argv[i] = int_alcstr(arg[i]);
-	argv[i] = NULL;
+	argv[argc] = NULL;
 	return argv;
 }
 
@@ -173,9 +173,9 @@ PTR int_writetmp(const char *str)
 
 PTR int_writearg(int argc, char **argv)
 {
+	int i;
 	PTR ptr = int_malloc(sizeof(PTR) * (argc+1));
 	PTR *arg = cpu_ptr(ptr);
-	int i;
 	for (i = 0; i < argc; i++) *arg++ = int_writetmp(argv[i]);
 	*arg = NULLPTR;
 	return ptr;

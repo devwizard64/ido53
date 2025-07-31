@@ -12,12 +12,12 @@ void lib_syssgi(CPU *cpu)
 	case SGI_SYSCONF:
 		switch (a1)
 		{
-			case IRIX_SC_KERN_POINTERS:
-				v0 = -1;
-				break;
-			default:
-				eprint("sysconf(%d) not implemented\n", a1);
-				break;
+		case IRIX_SC_KERN_POINTERS:
+			v0 = -1;
+			break;
+		default:
+			eprint("sysconf(%d) not implemented\n", a1);
+			break;
 		}
 		break;
 	default:

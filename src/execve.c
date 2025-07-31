@@ -2,9 +2,7 @@
 
 void lib_execve(CPU *cpu)
 {
-	char *pathname;
-	char **argv;
-	char **envp;
+	char *pathname, **argv, **envp;
 	pathname = int_readpath(a0);
 	argv = int_readarg(a1);
 	free(argv[0]);

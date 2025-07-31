@@ -2,8 +2,8 @@
 
 void lib_sigset(CPU *cpu)
 {
-	int prev = sigtab[a0];
 	void (*disp)(int);
+	int prev = sigtab[a0];
 	if (a1 >= -1 && a1 <= 1)
 	{
 		disp = (void (*)(int))(intptr_t)a1;

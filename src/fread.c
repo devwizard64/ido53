@@ -3,14 +3,13 @@
 void lib_fread(CPU *cpu)
 {
 	LIB_CALL
+	int i, c;
 	IRIX_FILE *fp = cpu_ptr(a3);
 	for (v0 = 0; v0 < a2; v0++)
 	{
-		int i;
 		for (i = 0; i < a1; i++)
 		{
-			int c = int_fgetc(fp);
-			if (c == EOF) goto end;
+			if ((c = int_fgetc(fp)) == EOF) goto end;
 			*cpu_s8(a0++) = c;
 		}
 	}

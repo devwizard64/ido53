@@ -2,11 +2,10 @@
 
 int xfprintf(void *p, const char *fmt, ...)
 {
-	IRIX_FILE *fp = p;
-	va_list arg;
+	int i, n;
 	char buf[32768];
-	int n;
-	int i;
+	va_list arg;
+	IRIX_FILE *fp = p;
 	va_start(arg, fmt);
 	n = vsprintf(buf, fmt, arg);
 	va_end(arg);
@@ -19,16 +18,15 @@ int xfprintf(void *p, const char *fmt, ...)
 
 int xsprintf(void *p, const char *fmt, ...)
 {
-	CPU *cpu = p;
-	va_list arg;
+	int i, n;
 	char buf[32768];
-	int n;
-	int i;
+	va_list arg;
+	CPU *cpu = p;
 	va_start(arg, fmt);
 	n = vsprintf(buf, fmt, arg);
 	va_end(arg);
 	for (i = 0; i < n; i++) *cpu_s8(a0++) = buf[i];
-	*cpu_s8(a0) = 0;
+	*cpu_s8(a0) = '\0';
 	return n;
 }
 
@@ -84,16 +82,16 @@ static int fmt_code(char c)
 
 int int_vxprintf(XFMTF *xprintf, void *p, PTR str, PTR arg)
 {
-	int n = 0;
-	for (;;)
+	int n, code;
+	char c, fmt[64];
+	char *s;
+	PTR ptr;
+	REG reg;
+	for (n = 0; (c = *cpu_s8(str++)) != '\0';)
 	{
-		char c = *cpu_s8(str++);
-		if (c == '\0') break;
 		if (c == '%')
 		{
-			char fmt[64];
-			char *s = fmt;
-			int code;
+			s = fmt;
 			*s++ = '%';
 			do
 			{
@@ -119,26 +117,19 @@ int int_vxprintf(XFMTF *xprintf, void *p, PTR str, PTR arg)
 				arg += 4;
 				break;
 			case FMT_FLOAT:
-			{
-				REG x;
 				arg = (arg+7) & ~7;
-				x.i[1^IX] = *cpu_s32(arg+0);
-				x.i[0^IX] = *cpu_s32(arg+4);
+				reg.i[1^IX] = *cpu_s32(arg+0);
+				reg.i[0^IX] = *cpu_s32(arg+4);
 				arg += 8;
-				n += xprintf(p, fmt, x.d);
+				n += xprintf(p, fmt, reg.d);
 				break;
-			}
 			case FMT_STR:
-			{
-				PTR x;
-				char *str;
-				x = *cpu_s32(arg);
+				ptr = *cpu_s32(arg);
 				arg += 4;
-				str = x ? int_readstr(x) : NULL;
-				n += xprintf(p, fmt, str);
-				int_freestr(str);
+				s = ptr ? int_readstr(ptr) : NULL;
+				n += xprintf(p, fmt, s);
+				int_freestr(s);
 				break;
-			}
 			case FMT_NO:
 				*cpu_s32(*cpu_s32(arg)) = n;
 				arg += 4;
@@ -160,18 +151,15 @@ int int_vfprintf(IRIX_FILE *fp, PTR str, PTR arg)
 
 int int_vfscanf(IRIX_FILE *fp, PTR str, PTR arg)
 {
-	int i;
-	int n = 0;
-	for (;;)
+	int i, n, x, code;
+	char c, fmt[64], buf[32768];
+	char *s;
+	void *p;
+	for (n = 0; (c = *cpu_s8(str++)) != '\0';)
 	{
-		char c = *cpu_s8(str++);
-		if (c == '\0') break;
 		if (c == '%')
 		{
-			char buf[32768];
-			char fmt[64];
-			char *s = fmt;
-			int code;
+			s = fmt;
 			*s++ = '%';
 			do
 			{
@@ -180,10 +168,9 @@ int int_vfscanf(IRIX_FILE *fp, PTR str, PTR arg)
 			while (code == FMT_NULL);
 			if (code == FMT_PERCENT) goto percent;
 			*s++ = 0;
-			i = 0;
-			for (;;)
+			for (i = 0;;)
 			{
-				int x = int_fgetc(fp);
+				x = int_fgetc(fp);
 				if (x == EOF)
 				{
 					if (i > 0) break;
@@ -209,23 +196,17 @@ int int_vfscanf(IRIX_FILE *fp, PTR str, PTR arg)
 			case FMT_UINT:
 			case FMT_FLOAT:
 			case FMT_NO:
-			{
-				int x;
 				if (sscanf(buf, fmt, &x) == EOF) return n;
 				*cpu_s32(*cpu_s32(arg)) = x;
 				arg += 4;
 				n++;
 				break;
-			}
 			case FMT_PTR:
-			{
-				void *x;
-				if (sscanf(buf, fmt, &x) == EOF) return n;
-				*cpu_s32(*cpu_s32(arg)) = (intptr_t)x;
+				if (sscanf(buf, fmt, &p) == EOF) return n;
+				*cpu_s32(*cpu_s32(arg)) = (intptr_t)p;
 				arg += 4;
 				n++;
 				break;
-			}
 			case FMT_STR:
 				int_writestr(*cpu_s32(arg), buf);
 				arg += 4;
@@ -235,7 +216,6 @@ int int_vfscanf(IRIX_FILE *fp, PTR str, PTR arg)
 		}
 		else
 		{
-			int x;
 		percent:
 			x = int_fgetc(fp);
 			if (x == EOF || x != c) break;

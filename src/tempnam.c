@@ -2,30 +2,26 @@
 
 static char *int_tempnam(const char *dir, const char *pfx)
 {
+	int i, fd;
 	char *path;
-	int len;
+	const char *tmp = getenv("TMPDIR");
 	if (!pfx) pfx = "";
-	if (!dir) dir = getenv("TMPDIR");
-	if (!dir || dir[0] == '\0') dir = "/tmp";
-	len = strlen(dir) + 1 + strlen(pfx) + 2*sizeof(int) + 1 + 2*sizeof(int) + 1;
-	if ((path = malloc(len)))
+	if (!tmp || tmp[0] == '\0') tmp = dir;
+	if (!tmp || tmp[0] == '\0') tmp = P_tmpdir;
+	if ((path = malloc(strlen(tmp)+1+5+2*sizeof(int)+1+2*sizeof(int)+1)))
 	{
 		int pid = getpid() ^ (intptr_t)int_tempnam;
-		int count = 0;
-		for (;;)
+		for (i = 0;; i++)
 		{
-			int fd;
-			sprintf(path, "%s/%s%x.%x", dir, pfx, pid, count++);
+			sprintf(path, "%s/%.5s%x.%x", tmp, pfx, pid, i);
 			if ((fd = open(path, O_RDONLY, 0)) < 0)
 			{
-				if (errno == ENOSYS)
-				{
-					free(path);
-					path = NULL;
-				}
-				break;
+				if (errno == ENOENT) break;
 			}
-			close(fd);
+			else
+			{
+				close(fd);
+			}
 		}
 	}
 	return path;

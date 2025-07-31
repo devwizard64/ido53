@@ -3,8 +3,8 @@
 void lib_signal(CPU *cpu)
 {
 #if 0
-	int prev = sigtab[a0];
 	void (*func)(int);
+	int prev = sigtab[a0];
 	if (a1 >= -1 && a1 <= 1)
 	{
 		func = (void (*)(int))(intptr_t)a1;

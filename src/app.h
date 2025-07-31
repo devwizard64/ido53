@@ -299,6 +299,7 @@ extern PTR int_writearg(int argc, char **argv);
 
 extern void int_cinit(PTR _end, PTR _ctype, PTR _errno, PTR _iob);
 
+extern int int_brk(PTR addr);
 extern PTR int_sbrk(intptr_t increment);
 
 extern PTR int_malloc(size_t size);
@@ -378,7 +379,6 @@ struct irix_stat
 extern void int_writestat(struct irix_stat *irix_statbuf, struct stat *statbuf);
 
 extern PTR sigtab[16];
-extern volatile PTR sigsp;
 extern void int_sig(int sig);
 
 extern PTR int_tsearch(CPU *cpu, PTR key, PTR rootp, PTR compar, int search);

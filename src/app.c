@@ -13,11 +13,10 @@ const int8_t __r_shift[] = {24, 16,  8,  0};
 
 void __call(CPU *cpu, PTR addr)
 {
-	const CALL *start = call_table;
+	const CALL *call, *start = call_table;
 	unsigned int len = call_len;
 	do
 	{
-		const CALL *call;
 		if (len > 1) len /= 2;
 		call = start + len;
 		if (addr >= call->addr) start = call;

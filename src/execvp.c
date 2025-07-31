@@ -2,8 +2,7 @@
 
 void lib_execvp(CPU *cpu)
 {
-	char *file;
-	char **argv;
+	char *file, **argv;
 	file = int_readpath(a0);
 	argv = int_readarg(a1);
 	free(argv[0]);

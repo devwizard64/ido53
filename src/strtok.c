@@ -9,12 +9,11 @@ void lib_strtok(CPU *cpu)
 #else
 	static PTR ptr = NULLPTR;
 	static char *str = NULL;
-	char *delim;
-	char *tok;
+	char *delim, *tok;
 	if (a0)
 	{
 		ptr = a0;
-		if (str) free(str);
+		free(str);
 		tok = str = int_alcstr(ptr);
 	}
 	else
@@ -26,7 +25,7 @@ void lib_strtok(CPU *cpu)
 	int_freestr(delim);
 	if (tok)
 	{
-		v0 = ptr+(tok-str);
+		v0 = ptr + (tok-str);
 		int_flushstr(v0, tok);
 	}
 	else

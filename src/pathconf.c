@@ -2,8 +2,8 @@
 
 void lib_pathconf(CPU *cpu)
 {
-	char *path = int_readstr(a0);
 	int name;
+	char *path = int_readstr(a0);
 	switch (a1)
 	{
 	case 5: name = _PC_PATH_MAX; break;

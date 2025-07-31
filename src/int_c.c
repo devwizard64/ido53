@@ -145,9 +145,8 @@ static const uint8_t irix_ctype[1+256] =
 void int_cinit(PTR _end, PTR _ctype, PTR _errno, PTR _iob)
 {
 	int i;
-	int pagesize = getpagesize();
-	_end = (_end+pagesize-1) & -pagesize;
-	int_sbrk(_end-MEM_START);
+	unsigned int pagemask = getpagesize()-1;
+	int_brk((_end+pagemask) & ~pagemask);
 	for (i = 0; i < 1+256; i++) *cpu_u8(_ctype+i) = irix_ctype[i];
 	errnop = cpu_s32(_errno);
 	fileiob = cpu_ptr(_iob);

@@ -5,10 +5,10 @@ uint32_t filecnt[100];
 
 PTR int_fdopen(IRIX_FILE *fp, int fd, const char *pathname, const char *mode)
 {
+	int i, flags;
 	char *w = strchr(mode, 'w');
 	char *a = strchr(mode, 'a');
 	char *p = strchr(mode, '+');
-	int flags;
 	if      (p) flags = O_RDWR;
 	else if (w) flags = O_WRONLY;
 	else if (a) flags = O_WRONLY;
@@ -22,7 +22,6 @@ PTR int_fdopen(IRIX_FILE *fp, int fd, const char *pathname, const char *mode)
 	}
 	if (!fp)
 	{
-		int i;
 		for (i = 3; i < 100; i++)
 		{
 			fp = &fileiob[i];

@@ -1,55 +1,68 @@
 #include "app.h"
 
-typedef struct mem
-{
-	struct mem *next;
-	PTR ptr;
-}
-MEM;
+#define LIST_MIN 7
+#define LIST_MAX 30
 
-typedef struct blk
-{
-	MEM *free;
-	MEM *used;
-}
-BLK;
+#define MEM_HEAD 32
+#define MEM_FOOT 32
 
-BLK mblk[30-3];
+#define MEM_SIG 0
+#define MEM_IDX 4
+#define MEM_SIZ 8
+
+#define SIGNATURE   0x4D454D4F
+
+typedef struct meminfo
+{
+	struct meminfo *next;
+	PTR mem;
+}
+MEMINFO;
+
+typedef struct memlist
+{
+	MEMINFO *free;
+	MEMINFO *used;
+}
+MEMLIST;
+
+MEMLIST memlist[LIST_MAX-LIST_MIN];
 
 PTR int_malloc(size_t size)
 {
 	int i;
-	size_t sz = (size+32+32+7) & ~7;
-	for (i = 0; i < 30-3; i++)
+	size_t sz = (MEM_HEAD+size+MEM_FOOT+7) & ~7;
+	for (i = 0; i < LIST_MAX-LIST_MIN; i++)
 	{
-		unsigned int n = 8 << i;
-		if (sz <= n)
+		MEMLIST *list;
+		MEMINFO *info;
+		unsigned int n = 1 << LIST_MIN << i;
+		if (sz > n) continue;
+		list = &memlist[i];
+		if (!list->free)
 		{
-			BLK *blk = &mblk[i];
-			MEM *mem;
-			if (!blk->free)
+			unsigned int pagemask = getpagesize()-1;
+			unsigned int siz = (n+pagemask) & ~pagemask;
+			PTR mem = int_sbrk(siz);
+			info = malloc(sizeof(MEMINFO) * (siz >> i >> LIST_MIN));
+			while (siz >= n)
 			{
-				unsigned int pagesize = getpagesize();
-				unsigned int siz = (n+pagesize-1) & -pagesize;
-				PTR ptr = int_sbrk(siz);
-				while (siz >= n)
-				{
-					mem = malloc(sizeof(MEM));
-					mem->next = blk->free;
-					blk->free = mem;
-					mem->ptr = ptr;
-					ptr += n;
-					siz -= n;
-				}
+				info->next = list->free;
+				list->free = info;
+				info->mem = mem;
+				info++;
+				mem += n;
+				siz -= n;
 			}
-			mem = blk->free;
-			blk->free = blk->free->next;
-			mem->next = blk->used;
-			blk->used = mem;
-			*cpu_u32(mem->ptr+0) = i;
-			*cpu_u32(mem->ptr+4) = size;
-			return mem->ptr+32;
 		}
+		info = list->free;
+		list->free = info->next;
+		info->next = list->used;
+		list->used = info;
+		*cpu_u32(info->mem+MEM_SIG) = SIGNATURE;
+		*cpu_u32(info->mem+MEM_IDX) = i;
+		*cpu_u32(info->mem+MEM_SIZ) = size;
+		return info->mem+MEM_HEAD;
 	}
 	wdebug("malloc() ENOMEM\n");
 	errno = ENOMEM;
@@ -58,29 +71,45 @@ PTR int_malloc(size_t size)
 
 void int_free(PTR ptr)
 {
-	BLK *blk = &mblk[*cpu_u32(ptr-32+0)];
-	MEM **prev = &blk->used;
-	MEM *mem = blk->used;
-	while (mem)
+	if (ptr)
 	{
-		if (mem->ptr == ptr-32)
+		MEMLIST *list;
+		MEMINFO **prev, *info;
+		PTR mem = ptr-MEM_HEAD;
+		if (*cpu_u32(mem+MEM_SIG) != SIGNATURE)
 		{
-			*prev = mem->next;
-			mem->next = blk->free;
-			blk->free = mem;
-			return;
+			eprint("free() bad sig 0x%08X\n", ptr);
 		}
-		prev = &mem->next;
-		mem = mem->next;
+		list = &memlist[*cpu_u32(mem+MEM_IDX)];
+		prev = &list->used;
+		info = list->used;
+		while (info)
+		{
+			if (info->mem == mem)
+			{
+				*prev = info->next;
+				info->next = list->free;
+				list->free = info;
+				return;
+			}
+			prev = &info->next;
+			info = info->next;
+		}
+		wdebug("free() bad ptr 0x%08X\n", ptr);
 	}
-	wdebug("free() bad ptr 0x%08X\n", ptr);
 }
 
 PTR int_realloc(PTR ptr, size_t size)
 {
 	if (ptr)
 	{
-		unsigned int siz = *cpu_u32(ptr-32+4);
+		unsigned int siz;
+		PTR mem = ptr-MEM_HEAD;
+		if (*cpu_u32(mem+MEM_SIG) != SIGNATURE)
+		{
+			eprint("realloc() bad sig 0x%08X\n", ptr);
+		}
+		siz = *cpu_u32(mem+MEM_SIZ);
 		if (size > siz)
 		{
 			PTR alc = int_malloc(size);
@@ -91,7 +120,7 @@ PTR int_realloc(PTR ptr, size_t size)
 			}
 			return alc;
 		}
-		*cpu_u32(ptr-32+4) = size;
+		*cpu_u32(mem+MEM_SIZ) = size;
 		return ptr;
 	}
 	return int_malloc(size);

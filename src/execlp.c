@@ -2,8 +2,7 @@
 
 void lib_execlp(CPU *cpu)
 {
-	char *file;
-	char **argv;
+	char *file, **argv;
 	*cpu_s32(sp+0x04) = a1;
 	*cpu_s32(sp+0x08) = a1;
 	*cpu_s32(sp+0x0C) = a1;

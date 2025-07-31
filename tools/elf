@@ -379,7 +379,7 @@ def op_mult(addr, line, inst):
 	global reg_flag
 	reg_flag |= 1 << 48
 	x, t = {
-		0x19: ("int64_t", "(int32_t)"),
+		0x19: ("uint64_t", "(uint32_t)"),
 	}[inst["func"]]
 	rs = gpr[inst["rs"]]
 	rt = gpr[inst["rt"]]
