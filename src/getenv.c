@@ -2,5 +2,8 @@
 
 void lib_getenv(CPU *cpu)
 {
-	v0 = NULLPTR;
+	char *name = int_readstr(a0);
+	char *str = getenv(name);
+	int_freestr(name);
+	v0 = str ? int_writetmp(str) : NULLPTR;
 }

@@ -12,21 +12,21 @@
 
 #define SIGNATURE   0x4D454D4F
 
-typedef struct meminfo
+typedef struct MemInfo
 {
-	struct meminfo *next;
+	struct MemInfo *next;
 	PTR mem;
 }
-MEMINFO;
+MemInfo;
 
-typedef struct memlist
+typedef struct
 {
-	MEMINFO *free;
-	MEMINFO *used;
+	MemInfo *free;
+	MemInfo *used;
 }
-MEMLIST;
+MemList;
 
-MEMLIST memlist[LIST_MAX-LIST_MIN];
+MemList memlist[LIST_MAX-LIST_MIN];
 
 PTR int_malloc(size_t size)
 {
@@ -34,8 +34,8 @@ PTR int_malloc(size_t size)
 	size_t sz = (MEM_HEAD+size+MEM_FOOT+7) & ~7;
 	for (i = 0; i < LIST_MAX-LIST_MIN; i++)
 	{
-		MEMLIST *list;
-		MEMINFO *info;
+		MemList *list;
+		MemInfo *info;
 		unsigned int n = 1 << LIST_MIN << i;
 		if (sz > n) continue;
 		list = &memlist[i];
@@ -44,7 +44,7 @@ PTR int_malloc(size_t size)
 			unsigned int pagemask = getpagesize()-1;
 			unsigned int siz = (n+pagemask) & ~pagemask;
 			PTR mem = int_sbrk(siz);
-			info = malloc(sizeof(MEMINFO) * (siz >> i >> LIST_MIN));
+			info = malloc(sizeof(MemInfo) * (siz >> i >> LIST_MIN));
 			while (siz >= n)
 			{
 				info->next = list->free;
@@ -73,12 +73,12 @@ void int_free(PTR ptr)
 {
 	if (ptr)
 	{
-		MEMLIST *list;
-		MEMINFO **prev, *info;
+		MemList *list;
+		MemInfo **prev, *info;
 		PTR mem = ptr-MEM_HEAD;
 		if (*cpu_u32(mem+MEM_SIG) != SIGNATURE)
 		{
-			eprint("free() bad sig 0x%08X\n", ptr);
+			eprint("free() bad sig 0x%.8X\n", ptr);
 		}
 		list = &memlist[*cpu_u32(mem+MEM_IDX)];
 		prev = &list->used;
@@ -95,7 +95,7 @@ void int_free(PTR ptr)
 			prev = &info->next;
 			info = info->next;
 		}
-		wdebug("free() bad ptr 0x%08X\n", ptr);
+		wdebug("free() bad ptr 0x%.8X\n", ptr);
 	}
 }
 
@@ -107,7 +107,7 @@ PTR int_realloc(PTR ptr, size_t size)
 		PTR mem = ptr-MEM_HEAD;
 		if (*cpu_u32(mem+MEM_SIG) != SIGNATURE)
 		{
-			eprint("realloc() bad sig 0x%08X\n", ptr);
+			eprint("realloc() bad sig 0x%.8X\n", ptr);
 		}
 		siz = *cpu_u32(mem+MEM_SIZ);
 		if (size > siz)

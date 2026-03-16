@@ -2,6 +2,6 @@
 
 void lib___f_to_ll(CPU *cpu)
 {
-	(void)cpu;
-	eprint("__f_to_ll() not implemented\n");
+	v0 = (int64_t)f12.f[IX] >> 32;
+	v1 = (int64_t)f12.f[IX] >>  0;
 }

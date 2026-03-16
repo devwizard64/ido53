@@ -1,7 +1,7 @@
 #include "app.h"
 
-IRIX_FILE *fileiob;
-uint32_t filecnt[100];
+IRIX_FILE *__iob;
+PTR *_bufendtab;
 
 PTR int_fdopen(IRIX_FILE *fp, int fd, const char *pathname, const char *mode)
 {
@@ -22,22 +22,22 @@ PTR int_fdopen(IRIX_FILE *fp, int fd, const char *pathname, const char *mode)
 	}
 	if (!fp)
 	{
-		for (i = 3; i < 100; i++)
+		for (i = 3; i < NFILE; i++)
 		{
-			fp = &fileiob[i];
-			if (fp->_flag == 0) goto brk;
+			fp = &__iob[i];
+			if (!fp->_flag) goto brk;
 		}
 		return NULLPTR;
 	brk:;
 	}
 	fp->_file = fd;
-	fp->_cnt = filecnt[fp-fileiob] = 0;
-	fp->_ptr = fp->_base = NULLPTR;
+	fp->_cnt = 0;
+	fp->_ptr = fp->_base = _bufendtab[fp-__iob] = NULLPTR;
 	switch (flags & O_ACCMODE)
 	{
-	case O_RDONLY: fp->_flag = (int8_t)0001; break;
-	case O_WRONLY: fp->_flag = (int8_t)0002; break;
-	case O_RDWR:   fp->_flag = (int8_t)0200; break;
+	case O_RDONLY: fp->_flag = IOREAD|IOFBF; break;
+	case O_WRONLY: fp->_flag = IOWRT |IOFBF; break;
+	case O_RDWR:   fp->_flag = IORW  |IOFBF; break;
 	}
 	return __ptr(fp);
 }
@@ -45,7 +45,7 @@ PTR int_fdopen(IRIX_FILE *fp, int fd, const char *pathname, const char *mode)
 int int_fclose(IRIX_FILE *fp)
 {
 	int_fflush(fp);
-	if (fp->_flag & 0010) int_free(fp->_base);
+	if (fp->_flag & IOMYBUF) int_free(fp->_base);
 	fp->_flag = 0;
 	return close(fp->_file);
 }
@@ -54,57 +54,57 @@ static void int_falloc(IRIX_FILE *fp)
 {
 	if (!fp->_base)
 	{
-		fp->_flag |= 0010;
-		fp->_cnt = filecnt[fp-fileiob] = 1024;
-		fp->_ptr = fp->_base = int_malloc(fp->_cnt);
+		fp->_ptr = fp->_base = int_malloc(IRIX_BUFSIZ+SBFSIZ);
+		fp->_flag |= IOMYBUF;
+		_bufendtab[fp-__iob] = fp->_base + IRIX_BUFSIZ;
 	}
 }
 
 int int_fflush(IRIX_FILE *fp)
 {
-	if (fp->_base)
+	int i, result = 0;
+	if (fp)
 	{
-		if (fp->_flag & 0002)
+		if (fp->_base)
 		{
-			size_t cnt = fp->_ptr - fp->_base;
-			PTR ptr = fp->_base;
-			while (cnt > 0)
+			if (fp->_flag & IOWRT)
 			{
-				void *buf = int_readmem(ptr, cnt);
-				ssize_t n = write(fp->_file, buf, cnt);
-				int_freemem(buf);
-				if (n < 0)
+				size_t cnt = fp->_ptr - fp->_base;
+				PTR ptr = fp->_base;
+				while (cnt > 0)
 				{
-					fp->_flag |= 0040;
-					return EOF;
+					void *buf = int_readmem(ptr, cnt);
+					ssize_t n = write(fp->_file, buf, cnt);
+					int_freemem(buf);
+					if (n < 0)
+					{
+						fp->_flag |= IOERR;
+						return EOF;
+					}
+					ptr += n;
+					cnt -= n;
 				}
-				ptr += n;
-				cnt -= n;
+				fp->_cnt = _bufendtab[fp-__iob] - fp->_base;
 			}
-			fp->_cnt = filecnt[fp-fileiob];
+			else
+			{
+				fp->_cnt = 0;
+			}
 			fp->_ptr = fp->_base;
 		}
 	}
-	return 0;
+	else
+	{
+		for (i = 0; i < NFILE; i++) result |= int_fflush(&__iob[i]);
+	}
+	return result;
 }
 
 int int_fseek(IRIX_FILE *fp, long offset, int whence)
 {
-	fp->_flag &= ~0020;
-	if (fp->_flag & 0001)
-	{
-		if (fp->_base)
-		{
-			if (whence == SEEK_CUR) offset -= fp->_cnt;
-		}
-		if (fp->_flag & 0200) fp->_flag &= ~0001;
-	}
-	else if (fp->_flag & (0002|0200))
-	{
-		int_fflush(fp);
-		if (fp->_flag & 0200) fp->_flag &= ~0002;
-	}
-	fp->_cnt = 0;
+	int_fflush(fp);
+	fp->_flag &= ~IOEOF;
+	if (fp->_flag & IORW) fp->_flag &= ~(IOREAD|IOWRT);
 	if (lseek(fp->_file, offset, whence) < 0) return EOF;
 	return 0;
 }
@@ -115,11 +115,16 @@ int int_filbuf(IRIX_FILE *fp)
 	char *buf;
 	size_t count;
 	ssize_t n;
-	if (!(fp->_flag & 0001))
+	if (!(fp->_flag & IOREAD))
 	{
-		if (fp->_flag & 0200)
+		if (fp->_flag & IORW)
 		{
-			fp->_flag |= 0001;
+			if (fp->_flag & IOWRT)
+			{
+				int_fflush(fp);
+				fp->_flag &= ~IOWRT;
+			}
+			fp->_flag |= IOREAD;
 		}
 		else
 		{
@@ -129,7 +134,7 @@ int int_filbuf(IRIX_FILE *fp)
 	}
 	int_falloc(fp);
 	fp->_cnt = 0;
-	count = filecnt[fp-fileiob];
+	count = _bufendtab[fp-__iob] - fp->_base;
 	buf = int_alcmem(fp->_base, count);
 	n = read(fp->_file, buf, count);
 	if (n > 0)
@@ -142,30 +147,47 @@ int int_filbuf(IRIX_FILE *fp)
 	}
 	else if (n == 0)
 	{
-		fp->_flag |= 0020;
+		fp->_flag |= IOEOF;
 		c = EOF;
 	}
 	else
 	{
-		fp->_flag |= 0040;
+		fp->_flag |= IOERR;
 		c = EOF;
 	}
 	int_freemem(buf);
 	return c;
 }
 
-int int_flsbuf(unsigned int c, IRIX_FILE *fp)
+int int_flsbuf(int c, IRIX_FILE *fp)
 {
-	if (int_fflush(fp)) return EOF;
+	if (!(fp->_flag & IOWRT))
+	{
+		if (fp->_flag & IORW)
+		{
+			if (fp->_flag & IOREAD)
+			{
+				fp->_ptr = fp->_base;
+				fp->_flag &= ~IOREAD;
+			}
+			fp->_flag |= IOWRT;
+		}
+		else
+		{
+			errno = EBADF;
+			return EOF;
+		}
+	}
 	int_falloc(fp);
+	if (int_fflush(fp)) return EOF;
 	--fp->_cnt;
 	*cpu_u8(fp->_ptr++) = c;
-	if (fp->_flag & 0004)
+	if (fp->_flag & IONBF)
 	{
 		if (int_fflush(fp)) return EOF;
 		fp->_cnt = 0;
 	}
-	return c;
+	return (unsigned char)c;
 }
 
 int int_fgetc(IRIX_FILE *fp)
@@ -181,7 +203,7 @@ int int_fputc(int c, IRIX_FILE *fp)
 int int_ungetc(int c, IRIX_FILE *fp)
 {
 	if (c == EOF || fp->_base == fp->_ptr) return EOF;
-	fp->_flag &= ~0020;
+	fp->_flag &= ~IOEOF;
 	fp->_ptr--;
 	fp->_cnt++;
 	return *cpu_u8(fp->_ptr) = c;

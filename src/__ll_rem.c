@@ -2,6 +2,9 @@
 
 void lib___ll_rem(CPU *cpu)
 {
-	(void)cpu;
-	eprint("__ll_rem() not implemented\n");
+	int64_t a = (int64_t)a0 << 32 | (uint32_t)a1;
+	uint64_t b = (uint64_t)a2 << 32 | (uint32_t)a3;
+	int64_t x = a % b;
+	v0 = x >> 32;
+	v1 = x >>  0;
 }

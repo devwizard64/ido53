@@ -2,10 +2,10 @@
 
 void lib_strtok(CPU *cpu)
 {
-	LIB_CALL
 	static char *saveptr;
 #ifdef EB
-	v0 = __ptr(strtok_r(cpu_ptr(a0), cpu_ptr(a1), &saveptr));
+	char *tok = strtok_r(cpu_ptr(a0), cpu_ptr(a1), &saveptr);
+	v0 = tok ? __ptr(tok) : NULLPTR;
 #else
 	static PTR ptr = NULLPTR;
 	static char *str = NULL;

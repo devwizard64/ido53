@@ -34,30 +34,6 @@ PTR int_memcpy(PTR dst, PTR src, int n)
 	return dst;
 }
 
-PTR int_memmove(PTR dst, PTR src, int n)
-{
-	int i;
-	if (dst > src)
-	{
-		for (i = n-1; i >= 0; i--) *cpu_s8(dst+i) = *cpu_s8(src+i);
-	}
-	else
-	{
-		for (i = 0; i < n; i++) *cpu_s8(dst+i) = *cpu_s8(src+i);
-	}
-	return dst;
-}
-
-PTR int_memccpy(PTR dst, PTR src, int c, int n)
-{
-	int i;
-	for (i = 0; i < n; i++)
-	{
-		if ((*cpu_u8(dst++) = *cpu_u8(src++)) == (unsigned char)c) return dst;
-	}
-	return NULLPTR;
-}
-
 PTR int_memset(PTR dst, int c, int n)
 {
 	int i;
@@ -69,16 +45,6 @@ PTR int_strcpy(PTR dst, PTR src)
 {
 	int i;
 	for (i = 0;; i++)
-	{
-		if ((*cpu_s8(dst+i) = *cpu_s8(src+i)) == '\0') break;
-	}
-	return dst;
-}
-
-PTR int_strncpy(PTR dst, PTR src, int n)
-{
-	int i;
-	for (i = 0; i < n; i++)
 	{
 		if ((*cpu_s8(dst+i) = *cpu_s8(src+i)) == '\0') break;
 	}

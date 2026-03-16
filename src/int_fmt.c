@@ -7,7 +7,7 @@ int xfprintf(void *p, const char *fmt, ...)
 	va_list arg;
 	IRIX_FILE *fp = p;
 	va_start(arg, fmt);
-	n = vsprintf(buf, fmt, arg);
+	n = vsnprintf(buf, sizeof(buf), fmt, arg);
 	va_end(arg);
 	for (i = 0; i < n; i++)
 	{
@@ -23,7 +23,7 @@ int xsprintf(void *p, const char *fmt, ...)
 	va_list arg;
 	CPU *cpu = p;
 	va_start(arg, fmt);
-	n = vsprintf(buf, fmt, arg);
+	n = vsnprintf(buf, sizeof(buf), fmt, arg);
 	va_end(arg);
 	for (i = 0; i < n; i++) *cpu_s8(a0++) = buf[i];
 	*cpu_s8(a0) = '\0';
@@ -80,7 +80,7 @@ static int fmt_code(char c)
 	return FMT_NULL;
 }
 
-int int_vxprintf(XFMTF *xprintf, void *p, PTR str, PTR arg)
+int int_vxprintf(FMTPROC xprintf, void *p, PTR str, PTR arg)
 {
 	int n, code;
 	char c, fmt[64];
@@ -146,7 +146,7 @@ int int_vxprintf(XFMTF *xprintf, void *p, PTR str, PTR arg)
 
 int int_vfprintf(IRIX_FILE *fp, PTR str, PTR arg)
 {
-	return int_vxprintf((XFMTF *)xfprintf, fp, str, arg);
+	return int_vxprintf((FMTPROC)xfprintf, fp, str, arg);
 }
 
 int int_vfscanf(IRIX_FILE *fp, PTR str, PTR arg)

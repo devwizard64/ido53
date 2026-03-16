@@ -32,6 +32,7 @@ void lib_tempnam(CPU *cpu)
 	char *dir = a0 ? int_readstr(a0) : NULL;
 	char *pfx = a1 ? int_readstr(a1) : NULL;
 	char *path = int_tempnam(dir, pfx);
+	*errnop = errno;
 	int_freestr(dir);
 	int_freestr(pfx);
 	if (path)
@@ -40,5 +41,4 @@ void lib_tempnam(CPU *cpu)
 		int_writestr(v0, path);
 		free(path);
 	}
-	int_writeerrno();
 }

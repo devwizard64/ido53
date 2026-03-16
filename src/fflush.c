@@ -2,7 +2,6 @@
 
 void lib_fflush(CPU *cpu)
 {
-	LIB_CALL
-	v0 = int_fflush(cpu_ptr(a0));
-	int_writeerrno();
+	v0 = int_fflush(a0 ? cpu_ptr(a0) : NULL);
+	*errnop = errno;
 }

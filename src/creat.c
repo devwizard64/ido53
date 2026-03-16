@@ -2,9 +2,8 @@
 
 void lib_creat(CPU *cpu)
 {
-	LIB_CALL
 	char *pathname = int_readpath(a0);
 	v0 = creat(pathname, a1);
+	*errnop = errno;
 	free(pathname);
-	int_writeerrno();
 }

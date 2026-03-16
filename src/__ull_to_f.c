@@ -2,6 +2,5 @@
 
 void lib___ull_to_f(CPU *cpu)
 {
-	(void)cpu;
-	eprint("__ull_to_f() not implemented\n");
+	f0.f[IX] = (uint64_t)a0 << 32 | (uint32_t)a1;
 }

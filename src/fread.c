@@ -2,7 +2,6 @@
 
 void lib_fread(CPU *cpu)
 {
-	LIB_CALL
 	int i, c;
 	IRIX_FILE *fp = cpu_ptr(a3);
 	for (v0 = 0; v0 < a2; v0++)
@@ -14,5 +13,5 @@ void lib_fread(CPU *cpu)
 		}
 	}
 end:
-	int_writeerrno();
+	*errnop = errno;
 }

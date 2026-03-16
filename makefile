@@ -1,14 +1,13 @@
-SRC_OBJ := \
-	build/src/app.o \
+LIB_OBJ := \
 	build/src/int_str.o \
 	build/src/int_c.o \
-	build/src/int_sbrk.o \
+	build/src/int_brk.o \
 	build/src/int_malloc.o \
 	build/src/int_errno.o \
 	build/src/int_file.o \
-	build/src/int_xfmtf.o \
+	build/src/int_fmt.o \
 	build/src/int_stat.o \
-	build/src/int_sig.o \
+	build/src/int_signal.o \
 	build/src/int_tree.o \
 	build/src/_rld_new_interface.o \
 	build/src/sqrt.o \
@@ -81,7 +80,6 @@ SRC_OBJ := \
 	build/src/__flsbuf.o \
 	build/src/time.o \
 	build/src/ungetc.o \
-	build/src/syssgi.o \
 	build/src/fcvt.o \
 	build/src/_prctl.o \
 	build/src/chmod.o \
@@ -169,10 +167,13 @@ OBJ := $(addprefix build/,$(addsuffix .o,$(ELF)))
 SRC := $(addprefix build/,$(addsuffix .c,$(ELF)))
 
 CC = gcc
+AR = ar
 #CPPFLAGS = -DALLOCA -DMMAP
+#CFLAGS = -fno-pie -fno-strict-aliasing -O2 -Wall -Wextra
+#LDFLAGS = -no-pie -s
 CPPFLAGS = -DALLOCA
-CFLAGS = -fno-pie -fno-strict-aliasing -O2 -Wall -Wextra
-LDFLAGS = -no-pie -s
+CFLAGS = -fno-strict-aliasing -O2 -Wall -Wextra
+LDFLAGS = -s
 
 .PHONY: default
 default: $(BIN) bin/ld bin/err.english.cc
@@ -182,13 +183,13 @@ clean:
 	rm -f -r bin build
 
 $(BIN):
-bin/%: build/%.o $(SRC_OBJ)
+bin/%: build/%.o build/lib.a
 	@mkdir -p $(dir $@)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ -lm
 
 $(OBJ):
 $(OBJ): CPPFLAGS += -Isrc
-$(OBJ): CFLAGS += -Wno-array-bounds
+$(OBJ): CFLAGS += -Wno-unused -Wno-array-bounds
 build/%.o: build/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
@@ -200,11 +201,14 @@ build/cfe.c: donor/libmalloc.so
 build/as0.c build/as1.c: donor/libexc.so
 build/%.c: donor/%
 	@mkdir -p $(dir $@)
-	tools/elf $^ > $@
+	tools/recompile $^ > $@
 
-$(SRC_OBJ): src/app.h
-$(SRC_OBJ): CFLAGS += -Wpedantic
-build/src/sigset.o: CFLAGS += -Wno-deprecated-declarations
+build/lib.a: $(LIB_OBJ)
+	$(AR) rc $@ $(LIB_OBJ)
+
+$(LIB_OBJ): src/app.h
+$(LIB_OBJ): CFLAGS += -Wpedantic
+build/src/int_signal.o: CFLAGS += -Wno-deprecated-declarations
 build/src/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
@@ -213,5 +217,6 @@ bin/%: donor/%
 	@mkdir -p $(dir $@)
 	cp -f $< $@
 
-bin/ld: bin/uld
+bin/ld:
+	@mkdir -p $(dir $@)
 	ln -s uld $@

@@ -3,17 +3,16 @@
 void lib_strchr(CPU *cpu)
 {
 #ifdef EB
-	v0 = __ptr(strchr(cpu_ptr(a0), a1));
+	char *str = strchr(cpu_ptr(a0), a1);
+	v0 = str ? __ptr(str) : NULLPTR;
 #else
-	v0 = a0;
-	while (*cpu_s8(v0) != a1)
+	for (v0 = a0; *cpu_u8(v0) != (unsigned char)a1; v0++)
 	{
 		if (*cpu_s8(v0) == '\0')
 		{
 			v0 = NULLPTR;
 			return;
 		}
-		v0++;
 	}
 #endif
 }

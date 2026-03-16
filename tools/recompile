@@ -1,0 +1,1458 @@
+#!/usr/bin/env python3
+
+import sys
+import struct
+
+# print() to stderr
+def debug(*args, sep=' ', end='\n'):
+	sys.stderr.write(sep.join([str(arg) for arg in args])+end)
+
+# cast to unsigned type
+def mask(x, n):
+	return x & ((1 << n)-1)
+
+# cast to signed type
+def sign(x, n):
+	bit = 1 << n
+	return (x & (bit-1)) - (x << 1 & bit)
+
+################################################################################
+# ELF (elf.h)
+################################################################################
+
+PT_LOAD                 = 1
+
+SHT_PROGBITS            = 1
+SHT_SYMTAB              = 2
+SHT_STRTAB              = 3
+SHT_DYNSYM              = 11
+
+STB_LOCAL               = 0
+STB_GLOBAL              = 1
+STB_WEAK                = 2
+
+def ST_BIND(info): return info>>4
+def ST_TYPE(info): return info&0xf
+def ST_INFO(bind, type_): return (bind<<4) + (type_&0xf)
+
+# dereference name (must be done after all SH load)
+def Elf_Name(self, sh):
+	i = self.name
+	n = sh.data.find(B"\0", i)
+	self.name = sh.data[i:n].decode()
+
+class Elf32_Ehdr:
+	def __init__(self, data):
+		self.ident, self.type, self.machine, self.version, self.entry, \
+			self.phoff, self.shoff, self.flags, self.ehsize, self.phentsize, \
+			self.phnum, self.shentsize, self.shnum, self.shstrndx = \
+			struct.unpack(">16sHHIIIIIHHHHHH", data)
+		self.ident = struct.unpack(">16B", self.ident)
+
+class Elf32_Phdr:
+	def __init__(self, data):
+		self.type, self.offset, self.vaddr, self.paddr, self.filesz, \
+			self.memsz, self.flags, self.align = \
+			struct.unpack(">IIIIIIII", data)
+
+class Elf32_Shdr:
+	def __init__(self, data):
+		self.name, self.type, self.flags, self.addr, self.offset, self.size, \
+			self.link, self.info, self.addralign, self.entsize = \
+			struct.unpack(">IIIIIIIIII", data)
+	def load(self, f):
+		f.seek(self.offset)
+		if self.type == SHT_SYMTAB or self.type == SHT_DYNSYM:
+			self.num = self.size//16
+			self.data = [Elf32_Sym(f.read(16)) for i in range(self.num)]
+		else:
+			self.data = f.read(self.size)
+	def get(self, addr, fmt):
+		x, = struct.unpack_from(">"+fmt, self.data, addr-self.addr)
+		return x
+
+class Elf32_Sym:
+	def __init__(self, data):
+		self.name, self.value, self.size, self.info, self.other, self.shndx = \
+			struct.unpack(">IIIBBH", data)
+
+class Elf32:
+	def __init__(self, path):
+		with open(path, "rb") as f:
+			self.eh = Elf32_Ehdr(f.read(52))
+			f.seek(self.eh.phoff)
+			self.ph = [Elf32_Phdr(f.read(32)) for i in range(self.eh.phnum)]
+			f.seek(self.eh.shoff)
+			self.sh = [Elf32_Shdr(f.read(40)) for i in range(self.eh.shnum)]
+			for sh in self.sh: sh.load(f)
+			for sh in self.sh: Elf_Name(sh, self.sh[self.eh.shstrndx])
+			self.section = {sh.name: sh for sh in self.sh}
+			for sym in self.section[".dynsym"].data:
+				Elf_Name(sym, self.section[".dynstr"])
+			sh = self.section[".text"]
+			self.ftext = sh.addr
+			self.etext = sh.addr + sh.size
+			self.fdata = 1 << 32
+			self.edata = -1
+			for name in (".data",".rodata",".got"):
+				if name in self.section:
+					sh = self.section[name]
+					self.fdata = min(self.fdata, sh.addr)
+					self.edata = max(self.edata, sh.addr+sh.size)
+	def get(self, addr, fmt):
+		for sh in self.sh:
+			if addr >= sh.addr and addr < sh.addr+sh.size:
+				return sh.get(addr, fmt)
+		return None
+	def lw(self, addr):
+		assert (addr & 3) == 0, "%X" % addr
+		return self.get(addr, "i")
+	def lwu(self, addr):
+		assert (addr & 3) == 0, "%X" % addr
+		return self.get(addr, "I")
+
+################################################################################
+# OP
+################################################################################
+
+# C operation
+class OP:
+	valid = {
+		"(", # "[", ".", "->", "+$",
+		"-$", "!", "~",
+		"()", # "*$", "&$", "sizeof",
+		"*", "/", "%", "+", "-", "<<", ">>",
+		"<", "<=", ">", ">=", "==", "!=",
+		"&", "^", "|", "&&", "||",
+		"=", # "*=", "/=", "%=", "+=","-=", "<<=",">>=","&=","^=","|=",
+	}
+	order = {
+		"$++":1, "$--":1, "(":1, "[":1, ".":1, "->":1,
+		"++$":2, "--$":2, "+$":2, "-$":2, "!":2, "~":2,
+		"()":2, "*$":2, "&$":2,"sizeof":2,
+		"*":3, "/":3, "%":3,
+		"+":4, "-":4,
+		"<<":5, ">>":5,
+		"<":6, "<=":6, ">":6, ">=":6,
+		"==":7, "!=":7,
+		"&":8,
+		"^":9,
+		"|":10,
+		"&&":11,
+		"||":12,
+		"?:":13,
+		"=":14, "*=":14, "/=":14, "%=":14, "+=":14, "-=":14,
+		"<<=":14, ">>=":14, "&=":14, "^=":14, "|=":14,
+	}
+	fmt1 = {
+		"$++": "%s++",
+		"$--": "%s--",
+		"++$": "++%s",
+		"--$": "--%s",
+		"+$": "+%s",
+		"-$": "-%s",
+		"!": "!%s",
+		"~": "~%s",
+		"*$": "*%s",
+		"&$": "&%s",
+	}
+	fmt2 = {
+		"(": "%s(%s)",
+		"[": "%s[%s]",
+		".": "%s.%s",
+		"->": "%s->%s",
+		"*": "%s * %s",
+		"/": "%s / %s",
+		"%": "%s %% %s",
+		"+": "%s + %s",
+		"-": "%s - %s",
+		"<<": "%s << %s",
+		">>": "%s >> %s",
+		"<": "%s < %s",
+		"<=": "%s <= %s",
+		">": "%s > %s",
+		">=": "%s >= %s",
+		"==": "%s == %s",
+		"!=": "%s != %s",
+		"&": "%s & %s",
+		"^": "%s ^ %s",
+		"|": "%s | %s",
+		"&&": "%s && %s",
+		"||": "%s || %s",
+		"=": "%s = %s",
+		"*=": "%s *= %s",
+		"/=": "%s /= %s",
+		"%=": "%s %%= %s",
+		"+=": "%s += %s",
+		"-=": "%s -= %s",
+		"<<=": "%s <<= %s",
+		">>=": "%s >>= %s",
+		"&=": "%s &= %s",
+		"^=": "%s ^= %s",
+		"|=": "%s |= %s",
+	}
+	def __init__(self, l, op, r=None):
+		assert op in self.valid
+		if op in self.fmt1: assert r is None
+		else: assert r is not None
+		# conversion L = L + R -> L += R
+		if op == "=":
+			if isinstance(r, OP) and r.op in {
+				"*", "/", "%", "+", "-", "<<", ">>", "&", "^", "|",
+			} and str(l) == str(r.l):
+				op = r.op + "="
+				r = r.r
+				if r == 1:
+					if op == "+=":
+						op = "++$"
+						r = None
+					elif op == "-=":
+						op = "--$"
+						r = None
+		self.op = op
+		self.l = l
+		self.r = r
+	def __str__(self):
+		order = self.order[self.op]
+		l = self.l
+		if isinstance(l, OP):
+			if self.order[self.l.op] > order: l = "(%s)" % l
+		elif isinstance(l, tuple):
+			l = ", ".join([str(x) for x in l])
+		if self.op in self.fmt1: return self.fmt1[self.op] % l
+		r = self.r
+		if isinstance(r, OP):
+			if self.op not in {"(", "["}:
+				if self.order[self.r.op] >= order: r = "(%s)" % r
+		elif isinstance(r, tuple):
+			r = ", ".join([str(x) for x in r])
+		if self.op == "()": return "(%s)%s" % (r, l)
+		return self.fmt2[self.op] % (l, r)
+	def __repr__(self):
+		return "OP(%s, %s, %s)" % (repr(self.l), repr(self.op), repr(self.r))
+
+# make op with static evaluation
+def makeop(l, op, r=None):
+	assert op in OP.valid
+	if op in OP.fmt1: assert r is None
+	else: assert r is not None
+	# static evaluation
+	if isinstance(l, int):
+		if op == "+$": return l
+		if op == "-$": return -l
+		if op == "!": return int(not l)
+		if op == "~": return ~l
+		if isinstance(r, int):
+			if op == "*": return l * r
+			if op == "/":
+				if r != 0: return l // r
+				debug("warning: zero division of %s" % repr(l))
+				return OP(l, op, r)
+			if op == "%": return l % r
+			if op == "+": return l + r
+			if op == "-": return l - r
+			if op == "<<": return l << r
+			if op == ">>": return l >> r
+			if op == "<": return int(l < r)
+			if op == "<=": return int(l <= r)
+			if op == ">": return int(l > r)
+			if op == ">=": return int(l >= r)
+			if op == "==": return int(l == r)
+			if op == "!=": return int(l != r)
+			if op == "&": return l & r
+			if op == "^": return l ^ r
+			if op == "|": return l | r
+			if op == "&&": return int(l and r)
+			if op == "||": return int(l or r)
+			assert RuntimeError("invalid op %d %s %d" % (l, op, r))
+		if l == 0:
+			if op in {"*","/","%","<<",">>","&","&&"}: return 0
+			if op in {"+","^","|"}: return r
+			if op == "-": return OP(r, "-$")
+		if l == 1:
+			if op == "*": return r
+	if isinstance(r, int):
+		# convert subtraction to addition (normalization)
+		if op == "-":
+			op = "+"
+			r = -r
+		# combine addition/subtraction of two constant
+		if op == "+":
+			if isinstance(l, OP) and l.op in {"+","-"} and isinstance(l.r, int):
+				if l.op == "+": r += l.r
+				if l.op == "-": r -= l.r
+				l = l.l
+		if r == 0:
+			if op in {"*","&","&&"}: return 0
+			if op in {"+","-","<<",">>","^","|"}: return l
+		if r == 1:
+			if op in {"*","/"}: return l
+		# convert addition of negative to subtraction (normalization)
+		if op == "+" and r < 0:
+			op = "-"
+			r = -r
+	return OP(l, op, r)
+
+invtab = {
+	"<": ">=",
+	"<=": ">",
+	">": "<=",
+	">=": "<",
+	"==": "!=",
+	"!=": "==",
+}
+
+# invert condition
+def invert(v):
+	if isinstance(v, OP):
+		if v.op == "!": return v.l
+		if v.op in invtab: return makeop(v.l, invtab[v.op], v.r)
+	return makeop(v, "!")
+
+# make cast with static evaluation
+def cast(v, t):
+	if isinstance(v, int):
+		if t == "int32_t": return sign(v, 32)
+		if t == "uint32_t": return mask(v, 32)
+	return makeop(v, "()", t)
+
+################################################################################
+# Instruction
+################################################################################
+
+gpr = [
+	0,"at","v0","v1","a0","a1","a2","a3",
+	"t0","t1","t2","t3","t4","t5","t6","t7",
+	"s0","s1","s2","s3","s4","s5","s6","s7",
+	"t8","t9","k0","k1","gp","sp","fp","ra",
+]
+
+class Inst:
+	# disassembly
+	def RS(self, inst): return gpr[inst["rs"]]
+	def RT(self, inst): return gpr[inst["rt"]]
+	def RD(self, inst): return gpr[inst["rd"]]
+	def FTs(self, inst): return "f%d.f[IX]" % inst["rt"]
+	def FSs(self, inst): return "f%d.f[IX]" % inst["rd"]
+	def FDs(self, inst): return "f%d.f[IX]" % inst["sa"]
+	def FTd(self, inst): return "f%d.d" % inst["rt"]
+	def FSd(self, inst): return "f%d.d" % inst["rd"]
+	def FDd(self, inst): return "f%d.d" % inst["sa"]
+	def FSw(self, inst): return "f%d.i[IX]" % inst["rd"]
+	def FDw(self, inst): return "f%d.i[IX]" % inst["sa"]
+	def FTW(self, inst):
+		return "f%d.i[%d^IX]" % (inst["rt"] & ~1, inst["rt"] & 1)
+	def FSW(self, inst):
+		return "f%d.i[%d^IX]" % (inst["rd"] & ~1, inst["rd"] & 1)
+	def IMM(self, inst): return inst["inst"] & 0xFFFF
+	def IMMS(self, inst): return sign(inst["inst"], 16)
+	def BDST(self, inst):
+		self.flag.add("branch")
+		return self.addr+4 + (sign(inst["inst"], 16) << 2)
+	def JDST(self, inst):
+		return (self.addr & 0xF0000000) | (inst["inst"] & 0x3FFFFFF) << 2
+	optab = {
+		0x00: ({
+			0x00: ("sll", RD, RT, "sa"),
+			0x02: ("srl", RD, RT, "sa"),
+			0x03: ("sra", RD, RT, "sa"),
+			0x04: ("sll", RD, RT, RS),
+			0x06: ("srl", RD, RT, RS),
+			0x07: ("sra", RD, RT, RS),
+			0x08: ("j", RS),
+			0x09: ("jal", RS),
+			0x0D: ("break", "rt"),
+			0x10: ("mfhi", RD),
+			0x12: ("mflo", RD),
+			0x19: ("multu", RS, RT),
+			0x1A: ("div", RS, RT),
+			0x1B: ("divu", RS, RT),
+			0x21: ("addu", RD, RS, RT),
+			0x22: ("sub", RD, RS, RT),
+			0x23: ("subu", RD, RS, RT),
+			0x24: ("and", RD, RS, RT),
+			0x25: ("or", RD, RS, RT),
+			0x26: ("xor", RD, RS, RT),
+			0x27: ("nor", RD, RS, RT),
+			0x2A: ("slt", RD, RS, RT),
+			0x2B: ("sltu", RD, RS, RT),
+		}, "func"),
+		0x01: ({
+			0x00: ("blt", RS, 0, BDST),
+			0x01: ("bge", RS, 0, BDST),
+			0x11: ({
+				0: ("bal", BDST),
+			}, "rs")
+		}, "rt"),
+		0x03: ("jal", JDST),
+		0x04: ("beq", RS, RT, BDST),
+		0x05: ("bne", RS, RT, BDST),
+		0x06: ("ble", RS, 0, BDST),
+		0x07: ("bgt", RS, 0, BDST),
+		0x08: ("add", RT, RS, IMMS),
+		0x09: ("addu", RT, RS, IMMS),
+		0x0A: ("slt", RT, RS, IMMS),
+		0x0B: ("sltu", RT, RS, IMMS),
+		0x0C: ("and", RT, RS, IMM),
+		0x0D: ("or", RT, RS, IMM),
+		0x0E: ("xor", RT, RS, IMM),
+		0x0F: ("lui", RT, IMM),
+		0x11: ({
+			0x00: ("mfc1", RT, FSW),
+			0x02: ("cfc1", RT, "rd"),
+			0x04: ("mtc1", RT, FSW),
+			0x06: ("ctc1", RT, "rd"),
+			0x08: ({
+				0x00: ("bc1f", BDST),
+				0x01: ("bc1t", BDST),
+			}, "rt"),
+			0x10: ({
+				0x00: ("add.s", FDs, FSs, FTs),
+				0x01: ("sub.s", FDs, FSs, FTs),
+				0x02: ("mul.s", FDs, FSs, FTs),
+				0x03: ("div.s", FDs, FSs, FTs),
+				0x06: ("mov.s", FDs, FSs),
+				0x07: ("neg.s", FDs, FSs),
+				0x21: ("cvt.d.s", FDd, FSs),
+				0x24: ("cvt.w.s", FDw, FSs),
+				0x32: ("c.eq.s", FSs, FTs),
+				0x3C: ("c.lt.s", FSs, FTs),
+				0x3E: ("c.le.s", FSs, FTs),
+			}, "func"),
+			0x11: ({
+				0x00: ("add.d", FDd, FSd, FTd),
+				0x01: ("sub.d", FDd, FSd, FTd),
+				0x02: ("mul.d", FDd, FSd, FTd),
+				0x03: ("div.d", FDd, FSd, FTd),
+				0x06: ("mov.d", FDd, FSd),
+				0x07: ("neg.d", FDd, FSd),
+				0x20: ("cvt.s.d", FDs, FSd),
+				0x24: ("cvt.w.d", FDw, FSd),
+				0x32: ("c.eq.d", FSd, FTd),
+				0x3C: ("c.lt.d", FSd, FTd),
+				0x3E: ("c.le.d", FSd, FTd),
+			}, "func"),
+			0x14: ({
+				0x20: ("cvt.s.w", FDs, FSw),
+				0x21: ("cvt.d.w", FDd, FSw),
+			}, "func"),
+		}, "rs"),
+		0x20: ("lb", RT, RS, IMMS),
+		0x21: ("lh", RT, RS, IMMS),
+		0x22: ("lwl", RT, RS, IMMS),
+		0x23: ("lw", RT, RS, IMMS),
+		0x24: ("lbu", RT, RS, IMMS),
+		0x25: ("lhu", RT, RS, IMMS),
+		0x26: ("lwr", RT, RS, IMMS),
+		0x28: ("sb", RT, RS, IMMS),
+		0x29: ("sh", RT, RS, IMMS),
+		0x2A: ("swl", RT, RS, IMMS),
+		0x2B: ("sw", RT, RS, IMMS),
+		0x2E: ("swr", RT, RS, IMMS),
+		0x31: ("lwc1", FTW, RS, IMMS),
+		0x39: ("swc1", FTW, RS, IMMS),
+	}
+	def __init__(self, elf, addr, inst):
+		self.elf = elf
+		self.addr = addr
+		self.flag = set()
+		if inst == 0:
+			self.op = "nop"
+			self.arg = ()
+		elif inst == 0x03E00008:
+			self.op = "ret"
+			self.arg = ()
+		else:
+			inst = {
+				"inst": inst,
+				"op": inst >> 26,
+				"rs": inst >> 21 & 31,
+				"rt": inst >> 16 & 31,
+				"rd": inst >> 11 & 31,
+				"sa": inst >>  6 & 31,
+				"func": inst & 63,
+			}
+			trace = []
+			info = (self.optab, "op")
+			while not isinstance(info[0], str):
+				table, index = info
+				i = inst[index]
+				trace.append("%s=0x%.2X" % (index, i))
+				if i not in table: raise RuntimeError("null 0x%X %s" % (
+					self.addr, " ".join(trace)
+				))
+				info = table[i]
+			self.op = info[0]
+			self.arg = tuple([
+				x(self, inst) if callable(x) else
+					inst[x] if isinstance(x, str) else x
+				for x in info[1:]
+			])
+		self.comment = ""
+	def __str__(self):
+		inst = self.op
+		if self.arg:
+			arg = list(self.arg)
+			if "branch" in self.flag:
+				arg[-1] = "_%X" % self.arg[-1]
+			inst += " " + ",".join([str(x) for x in arg])
+		if self.comment: inst += " # " + self.comment
+		return inst
+	def __repr__(self):
+		return "Inst(0x%X: %s)" % (self.addr, self)
+	def __eq__(self, value):
+		return self.op == value.op and self.arg == value.arg
+	def eq(self, op, *args):
+		if self.op != op: return False
+		for a, b in zip(self.arg, args):
+			if b is None: continue
+			if isinstance(b, set):
+				if a not in b: return False
+			else:
+				if a != b: return False
+		return True
+
+	def kill(self, comment=None):
+		self.comment = str(self)
+		if comment: self.comment += " (%s)" % comment
+		self.op = "nop"
+		self.arg = ()
+		self.flag = set()
+
+	# IO mapping
+	iotab = {
+		"nop": ((), ()),
+		"sll": ((0,), (1, 2)),
+		"srl": ((0,), (1, 2)),
+		"sra": ((0,), (1, 2)),
+		"ret": ((), ()),
+		"j": ((), (0,)),
+		"jal": ((), (0,)),
+		"break": ((), ()),
+		"mfhi": ((0,), ("hi",)),
+		"mflo": ((0,), ("lo",)),
+		"multu": (("lo",), (0, 1)),
+		"div": (("lo", "hi"), (0, 1)),
+		"divu": (("lo", "hi"), (0, 1)),
+		"add": ((0,), (1, 2)),
+		"addu": ((0,), (1, 2)),
+		"sub": ((0,), (1, 2)),
+		"subu": ((0,), (1, 2)),
+		"and": ((0,), (1, 2)),
+		"or": ((0,), (1, 2)),
+		"xor": ((0,), (1, 2)),
+		"nor": ((0,), (1, 2)),
+		"slt": ((0,), (1, 2)),
+		"sltu": ((0,), (1, 2)),
+		"blt": ((), (0, 1)),
+		"bge": ((), (0, 1)),
+		"bal": ((), (0, 1)),
+		"beq": ((), (0, 1)),
+		"bne": ((), (0, 1)),
+		"ble": ((), (0, 1)),
+		"bgt": ((), (0, 1)),
+		"lui": ((0,), (1,)),
+		"mfc1": ((0,), (1,)),
+		"cfc1": ((0,), ()),
+		"mtc1": ((1,), (0,)),
+		"ctc1": ((), ()),
+		"bc1f": ((), ("c1c",)),
+		"bc1t": ((), ("c1c",)),
+		"add.s": ((0,), (1, 2)),
+		"sub.s": ((0,), (1, 2)),
+		"mul.s": ((0,), (1, 2)),
+		"div.s": ((0,), (1, 2)),
+		"mov.s": ((0,), (1,)),
+		"neg.s": ((0,), (1,)),
+		"cvt.d.s": ((0,), (1,)),
+		"cvt.w.s": ((0,), (1,)),
+		"c.eq.s": (("c1c",), (0, 1)),
+		"c.lt.s": (("c1c",), (0, 1)),
+		"c.le.s": (("c1c",), (0, 1)),
+		"add.d": ((0,), (1, 2)),
+		"sub.d": ((0,), (1, 2)),
+		"mul.d": ((0,), (1, 2)),
+		"div.d": ((0,), (1, 2)),
+		"mov.d": ((0,), (1,)),
+		"neg.d": ((0,), (1,)),
+		"cvt.s.d": ((0,), (1,)),
+		"cvt.w.d": ((0,), (1,)),
+		"c.eq.d": (("c1c",), (0, 1)),
+		"c.lt.d": (("c1c",), (0, 1)),
+		"c.le.d": (("c1c",), (0, 1)),
+		"cvt.s.w": ((0,), (1,)),
+		"cvt.d.w": ((0,), (1,)),
+		"lb": ((0,), (1,)),
+		"lh": ((0,), (1,)),
+		"lw": ((0,), (1,)),
+		"lbu": ((0,), (1,)),
+		"lhu": ((0,), (1,)),
+		"lwl": ((0,), (0, 1)),
+		"lwr": ((0,), (0, 1)),
+		"ulw": ((0,), (1,)),
+		"sb": ((), (0, 1)),
+		"sh": ((), (0, 1)),
+		"sw": ((), (0, 1)),
+		"swl": ((), (0, 1)),
+		"swr": ((), (0, 1)),
+		"usw": ((), (0, 1)),
+		"lwc1": ((0,), (1,)),
+		"swc1": ((), (0, 1)),
+	}
+	def getio(self, io):
+		return set([reg.partition(".")[0] for reg in (
+			self.arg[i] if isinstance(i, int) else i
+			for i in self.iotab[self.op][io]
+		) if isinstance(reg, str)])
+	def getwr(self):
+		return self.getio(0)
+	def getrd(self):
+		return self.getio(1)
+
+	# allocation
+	def alloc(self, proc):
+		self.proc = proc
+		self.proc.reg |= self.getrd()
+
+	# compiling
+	def get(self, reg):
+		return reg
+	def set(self, reg, val):
+		if reg == symtab["_gp_disp"]: return
+		assert isinstance(reg, str)
+		if reg.partition(".")[0] in self.proc.reg:
+			self.out.append(makeop(reg, "=", val))
+	def jump(self, op):
+		self.out.append(op)
+		self.slot = None
+	def branch(self, cond, target):
+		if cond:
+			self.cond = cond
+			self.proc.btbl.add(target)
+			self.out.append("goto _%X" % target)
+			if "noslot" not in self.flag: self.slot = None
+
+	def get64(self, i, t):
+		hi = cast(self.get(gpr[i+0]), t)
+		lo = cast(self.get(gpr[i+1]), "uint32_t")
+		return makeop(makeop(hi, "<<", 32), "|", lo)
+	def set64(self, i, v):
+		self.set(gpr[i+0], makeop(v, ">>", 32))
+		self.set(gpr[i+1], v)
+	def ll_op(self, op, l, r):
+		self.set64(2, makeop(self.get64(4, l), op, self.get64(6, r)))
+	def ll_shift(self, op, t):
+		r = makeop(self.get("a3"), "&", 63)
+		self.set64(2, makeop(self.get64(4, t), op, r))
+	# ll.c
+	def ull_rshift(self):
+		self.ll_shift(">>", "uint64_t")
+	def ull_rem(self):
+		self.ll_op("%", "uint64_t", "uint64_t")
+	def ull_div(self):
+		self.ll_op("/", "uint64_t", "uint64_t")
+	def ll_lshift(self):
+		self.ll_shift("<<", "int64_t")
+	def ll_rem(self):
+		self.ll_op("%", "int64_t", "uint64_t")
+	def ll_div(self):
+		self.ll_op("/", "int64_t", "int64_t")
+	def ll_mul(self):
+		self.ll_op("*", "int64_t", "int64_t")
+	def ll_rshift(self):
+		self.ll_shift(">>", "int64_t")
+	# llcvt.c
+	def d_to_ll(self):
+		self.set64(2, cast(self.get("f12.d"), "int64_t"))
+	def f_to_ll(self):
+		self.set64(2, cast(self.get("f12.f[IX]"), "int64_t"))
+	def d_to_ull(self):
+		self.set64(2, cast(self.get("f12.d"), "uint64_t"))
+	def f_to_ull(self):
+		self.set64(2, cast(self.get("f12.f[IX]"), "uint64_t"))
+	def ll_to_d(self):
+		self.set("f0.d", self.get64(4, "int64_t"))
+	def ll_to_f(self):
+		self.set("f0.f[IX]", self.get64(4, "int64_t"))
+	def ull_to_d(self):
+		self.set("f0.d", self.get64(4, "uint64_t"))
+	def ull_to_f(self):
+		self.set("f0.f[IX]", self.get64(4, "uint64_t"))
+
+	inline = {
+		# ll.c
+		"lib___ull_rshift": ull_rshift,
+		"lib___ull_rem": ull_rem,
+		"lib___ull_div": ull_div,
+		"lib___ll_lshift": ll_lshift,
+		"lib___ll_rem": ll_rem,
+		"lib___ll_div": ll_div,
+		"lib___ll_mul": ll_mul,
+		"lib___ll_rshift": ll_rshift,
+		# llcvt.c
+		"lib___d_to_ll": d_to_ll,
+		"lib___f_to_ll": f_to_ll,
+		"lib___d_to_ull": d_to_ull,
+		"lib___f_to_ull": f_to_ull,
+		"lib___ll_to_d": ll_to_d,
+		"lib___ll_to_f": ll_to_f,
+		"lib___ull_to_d": ull_to_d,
+		"lib___ull_to_f": ull_to_f,
+	}
+
+	def NOP(self):
+		return
+	def OP(self, rd, rs, rt):
+		op = {
+			"sll": "<<",
+			"srl": ">>",
+			"sra": ">>",
+			"add": "+",
+			"addu": "+",
+			"sub": "-",
+			"subu": "-",
+			"and": "&",
+			"or": "|",
+			"xor": "^",
+			"nor": "|",
+			"slt": "<",
+			"sltu": "<",
+		}[self.op]
+		rs = self.get(rs)
+		rt = self.get(rt)
+		if self.op in {"sll", "srl", "sra"}:
+			if self.op == "srl": rs = cast(rs, "uint32_t")
+			rt = makeop(rt, "&", 31)
+		elif self.op == "sltu":
+			rs = cast(rs, "uint32_t")
+			rt = cast(rt, "uint32_t")
+		v = makeop(rs, op, rt)
+		if self.op == "nor": v = makeop(v, "~")
+		if self.op == "sltu" and rt == 0: v = 0
+		self.set(rd, v)
+	def RET(self):
+		self.jump("return")
+	def J(self, target):
+		assert hasattr(self, "jtbl"), self
+		self.jump("goto *jtbl%X[%s]" % (self.jtbl, self.get(target)))
+	def JAL(self, target):
+		global call_flag
+		target = self.get(target)
+		if isinstance(target, int):
+			for addr in (target, target-12):
+				if addr in addrtab:
+					name = addrtab[addr]
+					if name in self.inline:
+						self.inline[name](self)
+						self.slot = None
+						return
+					if name in {
+						"lib_signal",
+						"lib_sigset",
+						"lib_tsearch",
+						"lib_tfind",
+					}: call_flag = True
+					self.jump(makeop(name, "(", "cpu"))
+					return
+			debug("missing %X (%X)" % (target, self.addr))
+		self.jump(makeop("__call", "(", ("cpu", target)))
+		call_flag = True
+	def BREAK(self, code):
+		self.out.append(makeop("__break", "(", ("cpu", code)))
+	def MFHI(self, rd):
+		self.set(rd, self.get("hi"))
+	def MFLO(self, rd):
+		self.set(rd, self.get("lo"))
+	def MULT(self, rs, rt):
+		self.set("lo", makeop(self.get(rs), "*", self.get(rt)))
+	def DIV(self, rs, rt):
+		rs = self.get(rs)
+		rt = self.get(rt)
+		if self.op == "divu":
+			rs = cast(rs, "uint32_t")
+			rt = cast(rt, "uint32_t")
+		self.set("lo", makeop(rs, "/", rt))
+		self.set("hi", makeop(rs, "%", rt))
+	def BRANCH(self, rs, rt, target):
+		op = {
+			"blt": "<",
+			"bge": ">=",
+			"beq": "==",
+			"bne": "!=",
+			"ble": "<=",
+			"bgt": ">",
+		}[self.op]
+		rs = self.get(rs)
+		rt = self.get(rt)
+		if rs == rt:
+			if op == "!=" or "=" not in op: return
+			op = 1
+		else:
+			op = makeop(rs, op, rt)
+		self.branch(op, target)
+	def BC1F(self, target):
+		self.branch(invert(self.get("c1c")), target)
+	def BC1T(self, target):
+		self.branch(self.get("c1c"), target)
+	def LUI(self, rt, imm):
+		self.set(rt, imm << 16)
+	def MFC1(self, rt, fs):
+		self.set(rt, self.get(fs))
+	def CFC1(self, rt, rd):
+		self.set(rt, 0)
+	def MTC1(self, rt, fs):
+		self.set(fs, self.get(rt))
+	def CTC1(self, rt, rd):
+		return
+	def FOP(self, fd, fs, ft):
+		op, fmt = self.op.split(".")
+		op = {
+			"add": "+",
+			"sub": "-",
+			"mul": "*",
+			"div": "/",
+		}[op]
+		self.set(fd, makeop(self.get(fs), op, self.get(ft)))
+	def FMOV(self, fd, fs):
+		self.set(fd, self.get(fs))
+	def FNEG(self, fd, fs):
+		self.set(fd, makeop(self.get(fs), "-$"))
+	def FCMP(self, fs, ft):
+		c, op, fmt = self.op.split(".")
+		op = {
+			"eq": "==",
+			"lt": "<",
+			"le": "<=",
+		}[op]
+		self.set("c1c", makeop(self.get(fs), op, self.get(ft)))
+	def LOAD(self, rt, rs, imm):
+		f = {
+			"lb": "*cpu_s8",
+			"lh": "*cpu_s16",
+			"lw": "*cpu_s32",
+			"lbu": "*cpu_u8",
+			"lhu": "*cpu_u16",
+			"ulw": "__ulw",
+			"lwc1": "*cpu_s32",
+		}[self.op]
+		addr = makeop(self.get(rs), "+", imm)
+		if isinstance(addr, int) and (
+			addr >= self.elf.section[".rodata"].addr and
+			addr < self.elf.edata
+		):
+			val = {
+				"lw": self.elf.lw,
+				"lwc1": self.elf.lw,
+			}[self.op](addr)
+		else:
+			val = makeop(f, "(", addr)
+		self.set(rt, val)
+	def STORE(self, rt, rs, imm):
+		addr = makeop(self.get(rs), "+", imm)
+		f = {
+			"sb": "*cpu_s8",
+			"sh": "*cpu_s16",
+			"sw": "*cpu_s32",
+			"usw": "__usw",
+			"swc1": "*cpu_s32",
+		}[self.op]
+		if f.startswith("*"):
+			self.out.append(makeop(makeop(f, "(", addr), "=", self.get(rt)))
+		else:
+			self.out.append(makeop(f, "(", (addr, self.get(rt))))
+
+	comptab = {
+		"nop": NOP,
+		"sll": OP,
+		"srl": OP,
+		"sra": OP,
+		"ret": RET,
+		"j": J,
+		"jal": JAL,
+		"break": BREAK,
+		"mfhi": MFHI,
+		"mflo": MFLO,
+		"multu": MULT,
+		"div": DIV,
+		"divu": DIV,
+		"add": OP,
+		"addu": OP,
+		"sub": OP,
+		"subu": OP,
+		"and": OP,
+		"or": OP,
+		"xor": OP,
+		"nor": OP,
+		"slt": OP,
+		"sltu": OP,
+		"blt": BRANCH,
+		"bge": BRANCH,
+		"beq": BRANCH,
+		"bne": BRANCH,
+		"ble": BRANCH,
+		"bgt": BRANCH,
+		"lui": LUI,
+		"mfc1": MFC1,
+		"cfc1": CFC1,
+		"mtc1": MTC1,
+		"ctc1": CTC1,
+		"bc1f": BC1F,
+		"bc1t": BC1T,
+		"add.s": FOP,
+		"sub.s": FOP,
+		"mul.s": FOP,
+		"div.s": FOP,
+		"mov.s": FMOV,
+		"neg.s": FNEG,
+		"cvt.d.s": FMOV,
+		"cvt.w.s": FMOV,
+		"c.eq.s": FCMP,
+		"c.lt.s": FCMP,
+		"c.le.s": FCMP,
+		"add.d": FOP,
+		"sub.d": FOP,
+		"mul.d": FOP,
+		"div.d": FOP,
+		"mov.d": FMOV,
+		"neg.d": FNEG,
+		"cvt.s.d": FMOV,
+		"cvt.w.d": FMOV,
+		"c.eq.d": FCMP,
+		"c.lt.d": FCMP,
+		"c.le.d": FCMP,
+		"cvt.s.w": FMOV,
+		"cvt.d.w": FMOV,
+		"lb": LOAD,
+		"lh": LOAD,
+		"lw": LOAD,
+		"lbu": LOAD,
+		"lhu": LOAD,
+		"ulw": LOAD,
+		"sb": STORE,
+		"sh": STORE,
+		"sw": STORE,
+		"swr": STORE,
+		"usw": STORE,
+		"lwc1": LOAD,
+		"swc1": STORE,
+	}
+	def compile(self):
+		self.out = []
+		self.cond = 1
+		return self.comptab[self.op](self, *self.arg)
+
+	def output_block(self, block, tab="\t"):
+		for op in block:
+			if isinstance(op, int): print("_%X:" % op)
+			else: print("%s%s;" % (tab, op))
+	def output_inst(self, block, cond=None):
+		block = [
+			op for op in block
+			if not isinstance(op, int) or op in self.proc.btbl
+		]
+		if cond:
+			if len(block) == 1 and not isinstance(block[0], int):
+				print("\t%s %s;" % (cond, block[0]))
+			else:
+				print("\t%s\n\t{" % cond)
+				self.output_block(block, "\t\t")
+				print("\t}")
+		else:
+			self.output_block(block)
+	def output(self):
+		self.output_inst([self.addr])
+		# print("\t/* %.X:%s */" % (self.addr, self)) # DEBUG
+		if hasattr(self, "slot"):
+			# print("\t/* %.X:%s */" % (self.slot.addr, self.slot)) # DEBUG
+			if self.slot.getwr() & self.getrd() or (
+				self.slot.addr in self.proc.btbl
+			):
+				# must execute in order
+				if self.cond != 1:
+					cond_if = "if (%s)" % self.cond
+					cond_else = "else"
+				else:
+					cond_if = cond_else = None
+				self.output_inst(self.slot.out + self.out, cond_if)
+				self.output_inst([self.slot.addr] + self.slot.out, cond_else)
+				return
+			else:
+				# can execute out of order
+				self.output_inst(self.slot.out)
+		self.output_inst(
+			self.out, "if (%s)" % self.cond if self.cond != 1 else None
+		)
+
+################################################################################
+# Proc
+################################################################################
+
+glbreg = {
+	"v0","v1","a0","a1","a2","a3",
+	"s0","s1","s2","s3","s4","s5","s6","s7","sp",
+	"f0","f12","f14",
+}
+savereg = {
+	"fp","ra",
+	"f20","f22","f24","f26","f28","f30",
+}
+
+class Proc:
+	def __init__(self, asm, addr, inst, jtbl):
+		self.asm = asm
+		self.addr = addr
+		self.inst = inst
+		self.jtbl = jtbl
+		self.btbl = set([x for i in jtbl for x in jtbl[i]])
+		self.reg = glbreg.copy() # reg usage
+		self.out = [] # inst in output order
+		# lui gp,xxx
+		# addu gp,gp,xxx
+		# addu gp,gp,t9 [proc entry]
+		if (
+			inst[0].eq("lui", gpr[28], None) and
+			inst[1].eq("addu", gpr[28], gpr[28], None) and
+			inst[2].eq("addu", gpr[28], gpr[28], "t9") and
+			(inst[0].arg[1]<<16) + inst[1].arg[2] + addr == symtab["_gp_disp"]
+		):
+			inst[0].kill()
+			inst[1].kill()
+			inst[2].kill()
+
+	def compile(self):
+		for inst in self.inst: inst.alloc(self)
+		delay = None
+		for inst in self.inst:
+			inst.compile()
+			if delay:
+				delay.slot = inst
+				delay = None
+			else:
+				if hasattr(inst, "slot"): delay = inst
+				self.out.append(inst)
+		assert delay is None, delay
+
+	def output_reg(self, reg, t, v=""):
+		r = [i+v for i in reg if i in self.reg]
+		if r: print("\t%s %s;" % (t, ", ".join(r)))
+	def output(self):
+		print("\nstatic void %s(CPU *cpu)\n{" % addrtab[self.addr])
+		for i in sorted(self.jtbl.keys()):
+			print((
+				"\tstatic void *const jtbl%X[] =\n"
+				"\t{"
+			) % i)
+			for i in self.jtbl[i]: print("\t\t&&_%X," % i)
+			print("\t};")
+		self.output_reg((
+			"at",
+			"t0","t1","t2","t3","t4","t5","t6","t7","t8","t9",
+			"gp","fp","ra","hi","lo",
+		), "int32_t", "=0")
+		self.output_reg((
+			"f2","f4","f6","f8","f10","f16","f18",
+			"f20","f22","f24","f26","f28","f30",
+		), "REG", "={0}")
+		self.output_reg(("c1c",), "int", "=0")
+		if "gp" in self.reg: print("\tgp = 0x%X;" % symtab["_gp_disp"])
+		for inst in self.out: inst.output()
+		print("}")
+
+################################################################################
+# Asm
+################################################################################
+
+class Asm:
+	def __init__(self, elf):
+		self.elf = elf
+		self.inst = [
+			Inst(self.elf, addr, self.elf.lwu(addr))
+			for addr in range(self.elf.ftext, self.elf.etext, 4)
+		]
+		self.proc = []
+	def get(self, addr):
+		return self.inst[(addr-self.elf.ftext)//4]
+	def set(self, addr, inst):
+		self.inst[(addr-self.elf.ftext)//4] = inst
+
+	# patching
+	def patch(self, name, callback):
+		if name in symtab:
+			addr = symtab[name]
+			for x in callback():
+				self.set(addr, Inst(self.elf, addr, x))
+				addr += 4
+
+	# analysis
+	def analyze_j(self, inst, jtbl, i):
+		rs, = inst.arg
+		count = None
+		if self.inst[i].eq("addu", rs, rs, gpr[28]):
+			self.inst[i].kill("jtbl"); i -= 1
+		if self.inst[i].op == "nop": i -= 1
+		if self.inst[i].op != "lw": i -= 1
+		assert self.inst[i].eq("lw", rs, "at", None), self.inst[i]
+		inst.jtbl = self.inst[i].arg[2]
+		self.inst[i].kill("jtbl"); i -= 1
+		if self.inst[i].op != "addu": i -= 1
+		assert self.inst[i].eq("addu", "at", "at", rs), self.inst[i]
+		self.inst[i].kill("jtbl"); i -= 1
+		assert self.inst[i].eq("sll", rs, None, 2), self.inst[i]
+		rt = self.inst[i].arg[1]
+		inst.arg = (rt,)
+		self.inst[i].kill("jtbl"); i -= 1
+		if self.inst[i].eq("and", rt, None, None):
+			count = self.inst[i].arg[2] + 1
+			i -= 1
+		if self.inst[i].eq("lw", "at", gpr[28], None):
+			inst.jtbl += self.elf.lwu(symtab["_gp_disp"]+self.inst[i].arg[2])
+		elif self.inst[i].eq("lui", "at", None):
+			inst.jtbl += self.inst[i].arg[1] << 16
+		else:
+			raise RuntimeError("bad jr (li) %s" % self.inst[i])
+		self.inst[i].kill("jtbl"); i -= 1
+		if count is None:
+			rt = {rt}
+			for _ in range(12):
+				if self.inst[i].eq("or", rt, None, 0):
+					rt.add(self.inst[i].arg[1])
+				if self.inst[i].eq("sltu", "at", rt, None):
+					count = self.inst[i].arg[2]
+					break
+				if self.inst[i].op in {"ret","j"}:
+					raise RuntimeError("bad jr (sltiu)")
+				i -= 1
+			else:
+				raise RuntimeError("bad jr (sltiu over)")
+		jtbl[inst.jtbl] = [
+			symtab["_gp_disp"] + self.elf.lw(inst.jtbl+4*i)
+			for i in range(count)
+		]
+	def analyze_jal(self, inst, start, i):
+		phase = 0
+		rel = None
+		offset = 0
+		while i > start:
+			i -= 1
+			x = self.inst[i]
+			if "t9" in x.getwr():
+				if x.op == "lw":
+					rt, rs, imm = x.arg
+					if rs == gpr[28]:
+						if phase == 0:
+							# lw t9,gp,xxx
+							# [addu t9,t9,xxx]
+							inst.arg = (
+								self.elf.lw(symtab["_gp_disp"]+imm)+offset,
+							)
+							return
+					if rs != "t9": return
+					if phase == 0:
+						# lw t9,gp,xxx
+						# lui t9,xxx
+						# addiu t9,t9,gp
+						# lw t9,t9,xxx
+						rel = imm
+						phase = 1
+						continue
+				elif x.op == "addu":
+					rd, rs, rt = x.arg
+					if rs != "t9": return
+					if phase == 0:
+						assert offset == 0
+						offset = rt
+						continue
+					elif phase == 1:
+						assert rt == gpr[28]
+						phase = 2
+						continue
+				elif x.op == "lui":
+					rt, imm = x.arg
+					if phase == 2:
+						rel += imm << 16
+						inst.arg = (self.elf.lw(symtab["_gp_disp"]+rel)+offset,)
+						return
+				raise RuntimeError("jal 0x%X:%s phase=%d" % (x.addr, x, phase))
+		raise RuntimeError(inst)
+	def analyze_uls(self, inst, i):
+		op = inst.op[:-1]
+		rt, rs, imm = inst.arg
+		if inst.op[-1] == "l": # lwl/swl
+			comp = op+"r" # complement
+			base = imm
+			imm += 3
+		else: # lwr/swr
+			comp = op+"l" # complement
+			imm -= 3
+			base = imm
+		end = len(self.inst)
+		while i < end:
+			x = self.inst[i]
+			i += 1
+			if "branch" in x.flag: end = i+1
+			elif x.eq(comp, rt, rs, imm):
+				inst.kill()
+				x.kill()
+				x.op = "u"+op
+				x.arg = (rt, rs, base)
+				return
+	def analyze(self):
+		i = 0
+		while i < len(self.inst):
+			while i < len(self.inst):
+				if self.inst[i].op != "nop": break
+				i += 1
+			if i >= len(self.inst): break
+			# begin proc
+			addr = self.inst[i].addr
+			start = i
+			jtbl = {}
+			maxb = addr
+			reg = set()
+			kill = {}
+			sp = {"sp"}
+			while i < len(self.inst):
+				inst = self.inst[i]
+				if inst.op == "ret":
+					if inst.addr >= maxb: # final ret
+						i += 2
+						break
+				elif inst.op == "j": # jtbl extraction
+					self.analyze_j(inst, jtbl, i-1)
+				elif inst.op == "jal":
+					if inst.arg[0] == "t9":
+						self.analyze_jal(inst, start, i)
+				elif "branch" in inst.flag:
+					target = inst.arg[-1]
+					if maxb < target: maxb = target
+					if target == inst.addr+8: # pointless branch
+						inst.kill("pointless")
+					else:
+						slot = self.inst[i+1]
+						if slot.op == "nop": # need not consider slot
+							inst.flag.add("noslot")
+						else:
+							# if slot inst matches inst before target,
+							# adjust target and mark noslot
+							target = inst.arg[-1] - 4
+							if slot == self.get(target):
+								inst.arg = inst.arg[:-1] + (target,)
+								inst.flag.add("noslot")
+				elif inst.op in {"lwl","lwr","swl","swr"}: # ulw/usw subst.
+					self.analyze_uls(inst, i+1)
+				# kill save reg backup/restore inst.
+				elif inst.op == "or": # fp usage
+					if inst.arg == ("fp","sp",0): sp.add("fp")
+				elif inst.op in {"sw","swc1"}:
+					rt, rs, imm = inst.arg
+					if rs in sp and isinstance(rt, str) and rt not in kill:
+						r = rt.partition(".")[0]
+						if r in savereg and r not in reg:
+							kill[rt] = imm
+							inst.kill("save reg")
+				elif inst.op in {"lw","lwc1"}:
+					rt, rs, imm = inst.arg
+					if rs in sp and rt in kill and imm == kill[rt]:
+						kill.pop(rt)
+						inst.kill("save reg")
+				reg |= inst.getwr()
+				i += 1
+			# end proc
+			if "_mcount" in symtab and addr <= symtab["_mcount"]: continue
+			if addr not in addrtab: addrtab[addr] = "app_%X" % addr
+			assert not kill, addrtab[addr]
+			self.proc.append(Proc(self, addr, self.inst[start:i], jtbl))
+
+################################################################################
+# loading
+
+symtab = {} # (pre-)name to addr translation
+undtab = {"__ctype", "errno", "_bufendtab", "__iob"} # symbol import
+addrtab = {} # address to (post-)name translation
+call_flag = False # program requires __call
+
+# process symtab from executable
+def loadsym(elf):
+	for sym in elf.section[".dynsym"].data[1:]:
+		name = sym.name
+		addr = sym.value
+		# library symbol
+		if sym.shndx == 0x0000 or sym.shndx == 0xFFF2: # UND / COM
+			if not name.startswith("."):
+				undtab.add(name)
+				# defined in executable before processed assembly
+				if name == "_rld_new_interface": addrtab[addr] = "lib_" + name
+		# executable symbol
+		else:
+			if name not in symtab: symtab[name] = addr
+			if addr not in addrtab: addrtab[addr] = "app_" + name
+
+def loadext(elf):
+	for sym in elf.section[".dynsym"].data[1:]:
+		name = sym.name
+		addr = sym.value
+		if name in undtab: # collect undefined symbol address
+			if name not in symtab: symtab[name] = addr
+			# prefer function not prefixed with _
+			if addr not in addrtab or not name.startswith("_"):
+				# do not include data symbols
+				if name not in {
+					"__elf_header",
+					"__program_header_table",
+					"sys_errlist",
+					"sys_nerr",
+					"__ctype",
+					"__us_rsthread_stdio",
+					"errno",
+					"_environ",
+					"_bufendtab",
+					"__iob",
+					"_smbuf",
+					"_sibuf",
+					"_sobuf",
+				}: addrtab[addr] = "lib_" + name
+
+################################################################################
+# patching
+
+def HI(x): return (x >> 16) + (x >> 15 & 1)
+def LO(x): return x & 0xFFFF
+
+def NOP():            return 0
+def RET():            return 0x03E00008
+def JAL(addr):        return  3 << 26 | (addr & 0xFFFFFFC) >> 2
+def LA_U(rt, addr):   return 15 << 26 |            rt << 16 | HI(addr)
+def LA_L(rt, addr):   return  9 << 26 | rt << 21 | rt << 16 | LO(addr)
+
+# assembly uses a branch into alloc_new
+def xmalloc():
+	yield LA_U(5, symtab["malloc_scb"])
+	yield JAL(symtab["alloc_new"])
+	yield LA_L(5, symtab["malloc_scb"])
+	yield RET()
+	yield NOP()
+	yield NOP()
+	yield NOP()
+
+# assembly uses a branch into alloc_dispose
+def xfree():
+	yield LA_U(5, symtab["malloc_scb"])
+	yield JAL(symtab["alloc_dispose"])
+	yield LA_L(5, symtab["malloc_scb"])
+	yield RET()
+	yield NOP()
+
+# assembly uses lwr without matching lwl; prefer memcpy
+def memmove():
+	yield JAL(symtab["memcpy"])
+	yield NOP()
+	yield RET()
+	yield NOP()
+	addr = symtab["memmove"] + 4*4
+	while addr not in addrtab:
+		yield NOP()
+		addr += 4
+
+################################################################################
+
+def main(argv):
+	if len(argv) < 2:
+		sys.stderr.write("usage: %s <elf> [ext ...]" % argv[0])
+		return 1
+
+	# load images and extract symbol info
+	elf = Elf32(argv[1])
+	loadsym(elf)
+	for path in argv[2:]: loadext(Elf32(path))
+	gpr[28] = symtab["_gp_disp"]
+
+	# disassemble
+	asm = Asm(elf)
+	# patch
+	asm.patch("xmalloc", xmalloc)
+	asm.patch("xfree", xfree)
+	asm.patch("memmove", memmove)
+	# split into proc and do asm-level transformation
+	asm.analyze()
+
+	# compilation
+	for proc in asm.proc: proc.compile()
+
+	# program output
+	ext = sorted([
+		addr for addr in addrtab.keys()
+		if addrtab[addr].startswith("lib_")
+	])
+	sym = [proc.addr for proc in asm.proc]
+	print(
+		"#include \"app.h\"\n\n"
+		"#ifndef MMAP\n"
+		"char cpu_mem[MEM_SIZE];\n"
+		"#endif\n"
+	)
+	for addr in ext: print("extern void %s(CPU *cpu);" % addrtab[addr])
+	print("")
+	for addr in sym: print("static void %s(CPU *cpu);" % addrtab[addr])
+	print("")
+	if call_flag: # generate __call
+		print(
+			"typedef struct\n{\n"
+			"\tPTR addr;\n"
+			"\tvoid (*call)(CPU *cpu);\n"
+			"}\nCALL;\n\n"
+			"static const CALL calltab[] =\n{"
+		)
+		calltab = sorted(ext+sym)
+		for addr in calltab: print("\t{0x%X, %s}," % (addr, addrtab[addr]))
+		print((
+			"\t{-1, NULL},\n"
+			"};\n\n"
+			"void __call(CPU *cpu, PTR addr)\n"
+			"{\n"
+			"\tconst CALL *call = calltab;\n"
+			"\tunsigned int len = %d;\n"
+			"\tdo\n"
+			"\t{\n"
+			"\t\tif (len > 1) len /= 2;\n"
+			"\t\tif (addr >= call[len].addr) call += len;\n"
+			"\t\telse if (len == 1) edebug(\"__call(0x%%X)\\n\", addr);\n"
+			"\t}\n"
+			"\twhile (addr != call->addr && addr != call->addr+12);\n"
+			"\tcall->call(cpu);\n"
+			"}\n"
+		) % len(calltab))
+	print((
+		"static const uint32_t data[] =\n"
+		"{"
+	))
+	for addr in range(elf.fdata, elf.edata, 16):
+		print("\t" + "".join([
+			"0x%.8X," % elf.lwu(addr) for addr in range(addr, addr+16, 4)
+		]))
+	print((
+		"};\n\n"
+		"int main(int argc, char *argv[])\n"
+		"{\n"
+		"\tCPU cpu;\n"
+		"\tmemset(&cpu, 0, sizeof(CPU));\n"
+		"\tmemcpy(cpu_ptr(0x%X), data, sizeof(data));\n"
+		"\tint_setexecpath(argv[0]);"
+	) % elf.fdata)
+	print("\terrnop = cpu_s32(0x%X);" % symtab["errno"])
+	print("\t_bufendtab = cpu_ptr(0x%X);" % symtab["_bufendtab"])
+	print("\t__iob = cpu_ptr(0x%X);" % symtab["__iob"])
+	print("\tint_cinit(0x%X, 0x%X);" % (symtab["_end"], symtab["__ctype"]))
+	print("\tcpu._sp = 0x%X;" % (elf.fdata-16))
+	print("\tcpu._a0 = *cpu_s32(0x%X) = argc;" % symtab["__Argc"])
+	print((
+		"\tcpu._a1 = *cpu_s32(0x%X) = int_writearg(argc, argv);"
+	) % symtab["__Argv"])
+	print(
+		"\tapp_main(&cpu);\n"
+		"\tint_fflush(NULL);\n"
+		"\treturn cpu._v0;\n}"
+	)
+	for proc in asm.proc: proc.output()
+	return 0
+
+if __name__ == "__main__": sys.exit(main(sys.argv))

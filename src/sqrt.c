@@ -2,6 +2,5 @@
 
 void lib_sqrt(CPU *cpu)
 {
-	(void)cpu;
-	eprint("sqrt() not implemented\n");
+	f0.d = sqrt(f12.d);
 }

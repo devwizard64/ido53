@@ -9,7 +9,7 @@ void lib_execve(CPU *cpu)
 	argv[0] = pathname;
 	envp = a2 ? int_readarg(a2) : NULL;
 	v0 = execve(pathname, argv, envp);
+	*errnop = errno;
 	int_freearg(argv);
 	if (envp) int_freearg(envp);
-	int_writeerrno();
 }

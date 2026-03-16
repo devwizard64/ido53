@@ -18,8 +18,8 @@ PTR int_tsearch(CPU *cpu, PTR key, PTR rootp, PTR compar, int search)
 		{
 			*cpu_s32(rootp)  = node;
 			*cpu_s32(node+0) = key;
-			*cpu_s32(node+4) = 0;
-			*cpu_s32(node+8) = 0;
+			*cpu_s32(node+4) = NULLPTR;
+			*cpu_s32(node+8) = NULLPTR;
 		}
 	}
 	return node;
