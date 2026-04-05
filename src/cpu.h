@@ -60,7 +60,7 @@ typedef struct
 }
 CPU;
 
-typedef void (*PROC)(CPU *cpu);
+typedef void (*CPUPROC)(CPU *cpu);
 
 #define __break(cpu, code)
-extern PROC __getproc(PTR addr);
+extern CPUPROC __getproc(PTR addr);

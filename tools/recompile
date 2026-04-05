@@ -1609,7 +1609,7 @@ def main(argv):
 		print(
 			"typedef struct\n{\n"
 			"\tPTR addr;\n"
-			"\tPROC proc;\n"
+			"\tCPUPROC proc;\n"
 			"}\nProcEntry;\n\n"
 			"static const ProcEntry proctab[] =\n{"
 		)
@@ -1618,7 +1618,7 @@ def main(argv):
 		print((
 			"\t{-1, NULL},\n"
 			"};\n\n"
-			"PROC __getproc(PTR addr)\n"
+			"CPUPROC __getproc(PTR addr)\n"
 			"{\n"
 			"\tconst ProcEntry *entry = proctab;\n"
 			"\tunsigned int len = %d;\n"

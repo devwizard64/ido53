@@ -106,7 +106,7 @@ extern int lib_write(int fildes, PTR buf, unsigned nbyte);
 extern PTR lib_strncat(PTR s1, PTR s2, size_t n);
 #endif
 extern PTR lib_strdup(PTR s1);
-extern void lib_qsort(void *base, size_t nel, size_t width, PROC compar);
+extern void lib_qsort(void *base, size_t nel, size_t width, CPUPROC compar);
 extern PTR lib_getcwd(PTR buf, int size);
 extern int lib_bcmp(PTR b1, PTR b2, int length);
 extern long lib_strtol(PTR str, PTR ptr, int base);
@@ -199,7 +199,7 @@ extern PTR lib_ecvt(double value, int ndigit, int *decpt, int *sign);
 extern unsigned long long lib_strtoull(PTR str, PTR ptr, int base);
 extern long long lib_strtoll(PTR str, PTR ptr, int base);
 extern void lib_perror(PTR s);
-extern PTR int_tsearch(CPU *cpu, PTR key, PTR rootp, PROC compar, int search);
+extern PTR int_tsearch(CPU *cpu, PTR key, PTR rootp, CPUPROC compar, int flag);
 #define lib_tsearch(cpu, key, rootp, compar) \
 	int_tsearch(cpu, key, rootp, compar, 1)
 #define lib_tfind(cpu, key, rootp, compar) \
