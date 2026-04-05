@@ -17,21 +17,21 @@ struct irix_flock
 	int32_t pad[4];
 };
 
-static void int_readflock(struct flock *lock, struct irix_flock *irix_lock)
+static void int_readflock(struct flock *dst, struct irix_flock *src)
 {
-	switch (irix_lock->l_type)
+	switch (src->l_type)
 	{
-	case 01: lock->l_type = F_RDLCK; break;
-	case 02: lock->l_type = F_WRLCK; break;
-	case 03: lock->l_type = F_UNLCK; break;
+	case 01: dst->l_type = F_RDLCK; break;
+	case 02: dst->l_type = F_WRLCK; break;
+	case 03: dst->l_type = F_UNLCK; break;
 	default:
-		fatal("fcntl(F_SETLKW): unknown l_type %d\n", irix_lock->l_type);
+		fatal("fcntl(F_SETLKW): unknown l_type %d\n", src->l_type);
 		break;
 	}
-	lock->l_whence  = irix_lock->l_whence;
-	lock->l_start   = irix_lock->l_start;
-	lock->l_len     = irix_lock->l_len;
-	lock->l_pid     = irix_lock->l_pid;
+	dst->l_whence = src->l_whence;
+	dst->l_start  = src->l_start;
+	dst->l_len    = src->l_len;
+	dst->l_pid    = src->l_pid;
 }
 
 int lib_fcntl(int fildes, int cmd, PTR arg)
