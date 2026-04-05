@@ -1,10 +1,6 @@
 #include "app.h"
 
-void lib_strcat(CPU *cpu)
+PTR lib_strcat(PTR s1, PTR s2)
 {
-#ifdef EB
-	strcat(cpu_ptr(v0 = a0), cpu_ptr(a1));
-#else
-	int_strcpy(v0 = a0+int_strlen(a0), a1);
-#endif
+	return lib_strcpy(s1+lib_strlen(s1), s2);
 }

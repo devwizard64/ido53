@@ -1,21 +1,16 @@
 #include "app.h"
+#include <sys/times.h>
 
-struct irix_tms
+uint32_t lib_times(struct irix_tms *buffer)
 {
-	uint32_t tms_utime;
-	uint32_t tms_stime;
-	uint32_t tms_cutime;
-	uint32_t tms_cstime;
-};
-
-void lib_times(CPU *cpu)
-{
-	struct irix_tms *irix_buffer = cpu_ptr(a0);
-	struct tms buffer;
-	v0 = times(&buffer);
-	*errnop = errno;
-	irix_buffer->tms_utime  = buffer.tms_utime;
-	irix_buffer->tms_stime  = buffer.tms_stime;
-	irix_buffer->tms_cutime = buffer.tms_cutime;
-	irix_buffer->tms_cstime = buffer.tms_cstime;
+	struct tms buf;
+	clock_t result = times(&buf);
+	if (result != (clock_t)-1)
+	{
+		buffer->tms_utime  = buf.tms_utime;
+		buffer->tms_stime  = buf.tms_stime;
+		buffer->tms_cutime = buf.tms_cutime;
+		buffer->tms_cstime = buf.tms_cstime;
+	}
+	return result;
 }

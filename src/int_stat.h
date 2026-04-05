@@ -26,4 +26,4 @@ struct irix_stat
 	int32_t st_pad4[8];
 };
 
-extern void int_writestat(struct irix_stat *irix_statbuf, struct stat *statbuf);
+extern void int_writestat(struct irix_stat *dst, struct stat *src);

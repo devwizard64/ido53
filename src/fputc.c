@@ -1,7 +1,6 @@
 #include "app.h"
 
-void lib_fputc(CPU *cpu)
+int lib_fputc(int c, IRIX_FILE *stream)
 {
-	IRIX_FILE *fp = cpu_ptr(a1);
-	v0 = int_fputc(a0, fp);
+	return int_putc(c, stream);
 }

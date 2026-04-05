@@ -1,18 +1,15 @@
 #include "app.h"
 
-void lib_strchr(CPU *cpu)
+PTR lib_strchr(PTR s, int c)
 {
 #ifdef EB
-	char *str = strchr(cpu_ptr(a0), a1);
-	v0 = str ? __ptr(str) : NULLPTR;
+	char *ptr = strchr(cpu_ptr(s), c);
+	return ptr ? __ptr(ptr) : NULLPTR;
 #else
-	for (v0 = a0; *cpu_u8(v0) != (unsigned char)a1; v0++)
+	for (; *cpu_s8(s) != '\0'; s++)
 	{
-		if (*cpu_s8(v0) == '\0')
-		{
-			v0 = NULLPTR;
-			return;
-		}
+		if (*cpu_u8(s) == (unsigned char)c) return s;
 	}
+	return NULLPTR;
 #endif
 }

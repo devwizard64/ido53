@@ -1,8 +1,6 @@
 #include "app.h"
 
-void lib_perror(CPU *cpu)
+void lib_perror(PTR s)
 {
-	char *s = int_readstr(a0);
-	perror(s);
-	int_freestr(s);
+	perror(int_readstr(s));
 }

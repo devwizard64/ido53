@@ -1,4 +1,5 @@
 #include "app.h"
+#include <fcntl.h>
 
 #define IRIX_O_APPEND   00010
 #define IRIX_O_CREAT    00400
@@ -6,16 +7,13 @@
 #define IRIX_O_EXCL     02000
 #define IRIX_O_NOCTTY   04000
 
-void lib_open(CPU *cpu)
+int lib_open(PTR path, int oflag, int mode)
 {
-	char *pathname = int_readpath(a0);
-	int flags = a1 & O_ACCMODE;
-	if (a1 & IRIX_O_APPEND) flags |= O_APPEND;
-	if (a1 & IRIX_O_CREAT)  flags |= O_CREAT;
-	if (a1 & IRIX_O_TRUNC)  flags |= O_TRUNC;
-	if (a1 & IRIX_O_EXCL)   flags |= O_EXCL;
-	if (a1 & IRIX_O_NOCTTY) flags |= O_NOCTTY;
-	v0 = open(pathname, flags, a2);
-	*errnop = errno;
-	free(pathname);
+	int flags = oflag & O_ACCMODE;
+	if (oflag & IRIX_O_APPEND) flags |= O_APPEND;
+	if (oflag & IRIX_O_CREAT)  flags |= O_CREAT;
+	if (oflag & IRIX_O_TRUNC)  flags |= O_TRUNC;
+	if (oflag & IRIX_O_EXCL)   flags |= O_EXCL;
+	if (oflag & IRIX_O_NOCTTY) flags |= O_NOCTTY;
+	return open(int_readstr(path), flags, mode);
 }

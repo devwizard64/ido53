@@ -1,9 +1,6 @@
 #include "app.h"
 
-void lib_write(CPU *cpu)
+int lib_write(int fildes, PTR buf, unsigned nbyte)
 {
-	void *buf = int_readmem(a1, a2);
-	v0 = write(a0, buf, a2);
-	*errnop = errno;
-	int_freemem(buf);
+	return write(fildes, int_readmem(buf, nbyte), nbyte);
 }

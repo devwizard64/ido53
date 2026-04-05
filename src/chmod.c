@@ -1,9 +1,6 @@
 #include "app.h"
 
-void lib_chmod(CPU *cpu)
+int lib_chmod(PTR path, int mode)
 {
-	char *pathname = int_readpath(a0);
-	v0 = chmod(pathname, a1);
-	*errnop = errno;
-	free(pathname);
+	return chmod(int_readstr(path), mode);
 }

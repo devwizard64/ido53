@@ -1,9 +1,8 @@
 #include "app.h"
 
-void lib_calloc(CPU *cpu)
+PTR lib_calloc(size_t nelem, size_t elsize)
 {
-	size_t size = (size_t)(uint32_t)a0 * (size_t)(uint32_t)a1;
-	v0 = int_malloc(size);
-	*errnop = errno;
-	if (v0) int_memset(v0, 0, size);
+	PTR ptr = lib_malloc(nelem*elsize);
+	if (ptr) lib_memset(ptr, 0, nelem*elsize);
+	return ptr;
 }

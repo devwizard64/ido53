@@ -1,8 +1,6 @@
 #include "app.h"
 
-void lib_fgetc(CPU *cpu)
+int lib_fgetc(IRIX_FILE *stream)
 {
-	IRIX_FILE *fp = cpu_ptr(a0);
-	v0 = int_fgetc(fp);
-	*errnop = errno;
+	return int_getc(stream);
 }

@@ -1,20 +1,19 @@
 #include "app.h"
 
-void lib_fgets(CPU *cpu)
+PTR lib_fgets(PTR s, int n, IRIX_FILE *stream)
 {
-	IRIX_FILE *fp = cpu_ptr(a2);
-	v0 = a0;
-	while (--a1 > 0)
+	PTR result = s;
+	while (--n > 0)
 	{
-		int c = int_fgetc(fp);
+		int c = lib_fgetc(stream);
 		if (c == EOF)
 		{
-			if (v0 == a0) v0 = NULLPTR;
+			if (result == s) result = NULLPTR;
 			break;
 		}
-		*cpu_s8(a0++) = c;
+		*cpu_s8(s++) = c;
 		if (c == '\n') break;
 	}
-	*cpu_s8(a0) = 0;
-	*errnop = errno;
+	*cpu_s8(s) = '\0';
+	return result;
 }

@@ -1,8 +1,9 @@
 #include "app.h"
+#include <time.h>
 
-void lib_ctime(CPU *cpu)
+PTR lib_ctime(const uint32_t *clock)
 {
-	time_t t = *cpu_u32(a0);
+	time_t t = *clock;
 	char *str = ctime(&t);
-	v0 = int_writetmp(str);
+	return int_writetmp(str);
 }

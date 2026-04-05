@@ -1,11 +1,10 @@
 #include "app.h"
 
-void lib_strtod(CPU *cpu)
+double lib_strtod(PTR nptr, PTR endptr)
 {
-	char *nptr = int_readstr(a0);
-	char *endptr = NULL;
-	f0.d = strtod(nptr, a1 ? &endptr : NULL);
-	*errnop = errno;
-	if (endptr) *cpu_u32(a1) = a0 + (endptr-nptr);
-	int_freestr(nptr);
+	char *_nptr = int_readstr(nptr);
+	char *_endptr = NULL;
+	double result = strtod(_nptr, endptr ? &_endptr : NULL);
+	if (_endptr) *cpu_u32(endptr) = nptr + (_endptr-_nptr);
+	return result;
 }

@@ -1,23 +1,30 @@
 #include "app.h"
 
-void lib_fp_class_d(CPU *cpu)
+#define FP_SNAN         0
+#define FP_QNAN         1
+#define FP_POS_INF      2
+#define FP_NEG_INF      3
+#define FP_POS_NORM     4
+#define FP_NEG_NORM     5
+#define FP_POS_DENORM   6
+#define FP_NEG_DENORM   7
+#define FP_POS_ZERO     8
+#define FP_NEG_ZERO     9
+
+int lib_fp_class_d(double x)
 {
-	int x = f12.i[1^IX] >> 20 & 0x800;
-	int y = f12.i[1^IX] >> 20 & 0x7FF;
-	int z = f12.i[1^IX] & 0xFFFFF;
-	int w = f12.i[0^IX];
-	if (y == 0x7FF)
+	int exponent;
+	long long mantissa;
+	union {double d; long long ll;} pkt;
+	pkt.d = x;
+	exponent = pkt.ll >> 52 & 0x7FF;
+	mantissa = pkt.ll << 12;
+	if (exponent == 0x7FF)
 	{
-		if (z || w) v0 = !(z & 0x80000) ? 1 : 0;
-		else        v0 = x ? 3 : 2;
+		if (mantissa) return mantissa >= 0 ? FP_QNAN : FP_SNAN;
+		return pkt.ll < 0 ? FP_NEG_INF : FP_POS_INF;
 	}
-	else if (y != 0)
-	{
-		v0 = x ? 5 : 4;
-	}
-	else
-	{
-		if (z || w) v0 = x ? 7 : 6;
-		else        v0 = x ? 9 : 8;
-	}
+	if (exponent) return pkt.ll < 0 ? FP_NEG_NORM   : FP_POS_NORM;
+	if (mantissa) return pkt.ll < 0 ? FP_NEG_DENORM : FP_POS_DENORM;
+	return pkt.ll < 0 ? FP_NEG_ZERO : FP_POS_ZERO;
 }

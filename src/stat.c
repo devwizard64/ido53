@@ -1,11 +1,9 @@
 #include "app.h"
 
-void lib_stat(CPU *cpu)
+int lib_stat(PTR path, struct irix_stat *buf)
 {
 	struct stat statbuf;
-	char *pathname = int_readpath(a0);
-	v0 = stat(pathname, &statbuf);
-	*errnop = errno;
-	int_writestat(cpu_ptr(a1), &statbuf);
-	free(pathname);
+	int result = stat(int_readstr(path), &statbuf);
+	if (!result) int_writestat(buf, &statbuf);
+	return result;
 }

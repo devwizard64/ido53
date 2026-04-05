@@ -1,13 +1,13 @@
 #include "app.h"
 
-void lib_memcmp(CPU *cpu)
+int lib_memcmp(PTR s1, PTR s2, size_t n)
 {
-	while (a2--)
+	while (n--)
 	{
-		unsigned char a = *cpu_u8(a0++);
-		unsigned char b = *cpu_u8(a1++);
-		if (a < b) {v0 = -1; return;}
-		if (a > b) {v0 =  1; return;}
+		unsigned char a = *cpu_u8(s1++);
+		unsigned char b = *cpu_u8(s2++);
+		if (a < b) return -1;
+		if (a > b) return +1;
 	}
-	v0 = 0;
+	return 0;
 }

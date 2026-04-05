@@ -1,8 +1,6 @@
 #include "app.h"
 
-void lib_atof(CPU *cpu)
+double lib_atof(PTR nptr)
 {
-	char *nptr = int_readstr(a0);
-	f0.d = atof(nptr);
-	int_freestr(nptr);
+	return atof(int_readstr(nptr));
 }

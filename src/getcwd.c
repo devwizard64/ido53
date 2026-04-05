@@ -1,20 +1,14 @@
 #include "app.h"
 
-void lib_getcwd(CPU *cpu)
+PTR lib_getcwd(PTR buf, int size)
 {
-	char *result, *buf;
-	if (!a0) a0 = int_malloc(a1);
-	buf = int_alcmem(a0, a1);
-	result = getcwd(buf, a1);
-	*errnop = errno;
-	if (result)
+	char *_buf;
+	if (!buf) buf = lib_malloc(size);
+	_buf = int_alcmem(buf, size);
+	if (getcwd(_buf, size))
 	{
-		v0 = a0;
-		int_flushstr(a0, buf);
+		int_flushstr(buf, _buf);
+		return buf;
 	}
-	else
-	{
-		v0 = NULLPTR;
-	}
-	int_freemem(buf);
+	return NULLPTR;
 }

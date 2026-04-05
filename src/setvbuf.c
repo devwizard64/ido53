@@ -1,30 +1,27 @@
 #include "app.h"
 
-void lib_setvbuf(CPU *cpu)
+int lib_setvbuf(IRIX_FILE *stream, PTR buf, int type, size_t size)
 {
-	IRIX_FILE *fp = cpu_ptr(a0);
-	uint32_t size = a3;
-	int_fflush(fp);
-	if (fp->_flag & IOMYBUF)
+	lib_fflush(stream);
+	if (stream->_flag & IOMYBUF)
 	{
-		fp->_flag &= ~IOMYBUF;
-		int_free(fp->_base);
+		stream->_flag &= ~IOMYBUF;
+		lib_free(stream->_base);
 	}
 	if (size < SBFSIZ)
 	{
 		size = BUFSIZ+SBFSIZ;
-		a1 = NULLPTR;
+		buf = NULLPTR;
 	}
-	if (!a1)
+	if (!buf)
 	{
-		a1 = int_malloc(size);
-		fp->_flag |= IOMYBUF;
+		buf = lib_malloc(size);
+		stream->_flag |= IOMYBUF;
 	}
-	fp->_cnt = 0;
-	fp->_ptr = fp->_base = a1;
-	fp->_flag &= ~(IOFBF|IOLBF|IONBF);
-	fp->_flag |= a2;
-	_bufendtab[fp-__iob] = a1 + size - SBFSIZ;
-	v0 = 0;
-	*errnop = errno;
+	stream->_cnt = 0;
+	stream->_ptr = stream->_base = buf;
+	stream->_flag &= ~(IOFBF|IOLBF|IONBF);
+	stream->_flag |= type;
+	_bufendtab[stream-__iob] = buf + size - SBFSIZ;
+	return 0;
 }

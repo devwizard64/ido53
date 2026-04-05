@@ -1,7 +1,9 @@
 #include "app.h"
 
-void lib_fclose(CPU *cpu)
+int lib_fclose(IRIX_FILE *stream)
 {
-	v0 = int_fclose(cpu_ptr(a0));
-	*errnop = errno;
+	lib_fflush(stream);
+	if (stream->_flag & IOMYBUF) lib_free(stream->_base);
+	stream->_flag = 0;
+	return close(stream->_file);
 }

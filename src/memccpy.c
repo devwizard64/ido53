@@ -1,19 +1,15 @@
 #include "app.h"
 
-void lib_memccpy(CPU *cpu)
+PTR lib_memccpy(PTR s1, PTR s2, int c, size_t n)
 {
 #ifdef EB
-	char *ptr = memccpy(cpu_ptr(a0), cpu_ptr(a1), a2, a3);
-	v0 = ptr ? __ptr(ptr) : NULLPTR;
+	char *ptr = memccpy(cpu_ptr(s1), cpu_ptr(s2), c, n);
+	return ptr ? __ptr(ptr) : NULLPTR;
 #else
-	while (a3--)
+	while (n--)
 	{
-		if ((*cpu_u8(a0++) = *cpu_u8(a1++)) == (unsigned char)a2)
-		{
-			v0 = a0;
-			return;
-		}
+		if ((*cpu_u8(s1++) = *cpu_u8(s2++)) == (unsigned char)c) return s1;
 	}
-	v0 = NULLPTR;
+	return NULLPTR;
 #endif
 }

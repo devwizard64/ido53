@@ -1,19 +1,17 @@
 #include "app.h"
 
-void lib_fwrite(CPU *cpu)
+int lib_fwrite(PTR ptr, size_t size, size_t nitems, IRIX_FILE *stream)
 {
-	int i, c;
-	IRIX_FILE *fp = cpu_ptr(a3);
-	if (!fp->_base) fp->_flag |= IOWRT;
-	for (v0 = 0; v0 < a2; v0++)
+	size_t i, n;
+	int c;
+	if (!stream->_base) stream->_flag |= IOWRT;
+	for (n = 0; n < nitems; n++)
 	{
-		for (i = 0; i < a1; i++)
+		for (i = 0; i < size; i++)
 		{
-			c = *cpu_s8(a0++);
-			if (int_fputc(c, fp) == EOF) goto end;
-			if (fp->_flag & IOLBF && c == '\n') int_fflush(fp);
+			if (lib_fputc(c = *cpu_s8(ptr++), stream) == EOF) return n;
+			if (stream->_flag & IOLBF && c == '\n') lib_fflush(stream);
 		}
 	}
-end:
-	*errnop = errno;
+	return n;
 }

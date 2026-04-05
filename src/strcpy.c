@@ -1,6 +1,11 @@
 #include "app.h"
 
-void lib_strcpy(CPU *cpu)
+PTR lib_strcpy(PTR s1, PTR s2)
 {
-	int_strcpy(v0 = a0, a1);
+	size_t i;
+	for (i = 0;; i++)
+	{
+		if ((*cpu_s8(s1+i) = *cpu_s8(s2+i)) == '\0') break;
+	}
+	return s1;
 }

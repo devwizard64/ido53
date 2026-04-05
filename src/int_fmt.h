@@ -1,6 +1,10 @@
-typedef int (*FMTPROC)(void *p, const char *fmt, ...);
+#define FMT_NULL    0
+#define FMT_PERCENT 1
+#define FMT_SINT    2
+#define FMT_UINT    3
+#define FMT_PTR     4
+#define FMT_FLOAT   5
+#define FMT_STR     6
+#define FMT_NO      7
 
-extern int xfprintf(void *p, const char *fmt, ...);
-extern int xsprintf(void *p, const char *fmt, ...);
-extern int int_vxprintf(FMTPROC xprintf, void *p, PTR str, PTR arg);
-extern int int_vfscanf(IRIX_FILE *fp, PTR str, PTR arg);
+extern int int_getfmt(char *fmt, PTR *format);

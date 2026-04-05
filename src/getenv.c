@@ -1,9 +1,7 @@
 #include "app.h"
 
-void lib_getenv(CPU *cpu)
+PTR lib_getenv(PTR name)
 {
-	char *name = int_readstr(a0);
-	char *str = getenv(name);
-	int_freestr(name);
-	v0 = str ? int_writetmp(str) : NULLPTR;
+	char *str = getenv(int_readstr(name));
+	return str ? int_writetmp(str) : NULLPTR;
 }

@@ -1,5 +1,3 @@
-#include "app.h"
-
 #define U 0001
 #define L 0002
 #define N 0004
@@ -9,7 +7,7 @@
 #define B 0100
 #define X 0200
 
-static const uint8_t irix_ctype[257] =
+const unsigned char __ctype[257] =
 {
 	0,
 	C,C,C,C,C,C,C,C,C,S|C,S|C,S|C,S|C,S|C,C,C,
@@ -21,17 +19,3 @@ static const uint8_t irix_ctype[257] =
 	P,L|X,L|X,L|X,L|X,L|X,L|X,L,L,L,L,L,L,L,L,L,
 	L,L,L,L,L,L,L,L,L,L,L,P,P,P,P,C,
 };
-
-void int_cinit(PTR _end, PTR __ctype)
-{
-	int i;
-	unsigned int pagemask = getpagesize()-1;
-	int_brk((_end+pagemask) & ~pagemask);
-	for (i = 0; i < 257; i++) *cpu_u8(__ctype+i) = irix_ctype[i];
-	__iob[0]._flag = IOREAD|IOFBF;
-	__iob[0]._file = 0;
-	__iob[1]._flag = IOWRT|IOLBF;
-	__iob[1]._file = 1;
-	__iob[2]._flag = IOWRT|IOLBF;
-	__iob[2]._file = 2;
-}

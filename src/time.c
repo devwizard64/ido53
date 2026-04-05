@@ -1,8 +1,9 @@
 #include "app.h"
+#include <time.h>
 
-void lib_time(CPU *cpu)
+uint32_t lib_time(uint32_t *tloc)
 {
-	v0 = time(NULL);
-	*errnop = errno;
-	if (a0) *cpu_u32(a0) = v0;
+	uint32_t t = time(NULL);
+	if (tloc) *tloc = t;
+	return t;
 }

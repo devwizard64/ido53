@@ -1,7 +1,6 @@
 #include "app.h"
 
-void lib_rename(CPU *cpu)
+int lib_rename(PTR old, PTR new)
 {
-	(void)cpu;
-	eprint("rename() not implemented\n");
+	return rename(int_readstr(old), int_readstr(new));
 }

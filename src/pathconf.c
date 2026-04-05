@@ -1,16 +1,13 @@
 #include "app.h"
 
-void lib_pathconf(CPU *cpu)
+long lib_pathconf(PTR path, int name)
 {
-	int name;
-	char *path = int_readstr(a0);
-	switch (a1)
+	switch (name)
 	{
 	case 5: name = _PC_PATH_MAX; break;
 	default:
-		eprint("pathconf(%d) not implemented\n", a1);
+		fatal("pathconf(%d) not implemented\n", name);
 		break;
 	}
-	v0 = pathconf(path, name);
-	int_freestr(path);
+	return pathconf(int_readstr(path), name);
 }

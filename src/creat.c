@@ -1,9 +1,7 @@
 #include "app.h"
+#include <fcntl.h>
 
-void lib_creat(CPU *cpu)
+int lib_creat(PTR path, int mode)
 {
-	char *pathname = int_readpath(a0);
-	v0 = creat(pathname, a1);
-	*errnop = errno;
-	free(pathname);
+	return creat(int_readstr(path), mode);
 }

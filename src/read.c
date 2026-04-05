@@ -1,10 +1,9 @@
 #include "app.h"
 
-void lib_read(CPU *cpu)
+int lib_read(int fildes, PTR buf, unsigned nbyte)
 {
-	void *buf = int_alcmem(a1, a2);
-	v0 = read(a0, buf, a2);
-	*errnop = errno;
-	if (v0 >= 0) int_flushmem(a1, buf, v0);
-	int_freemem(buf);
+	void *_buf = int_alcmem(buf, nbyte);
+	int n = read(fildes, _buf, nbyte);
+	if (n >= 0) int_flushmem(buf, _buf, n);
+	return n;
 }

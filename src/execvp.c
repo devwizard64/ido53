@@ -1,13 +1,14 @@
 #include "app.h"
 
-void lib_execvp(CPU *cpu)
+int lib_execvp(PTR file, PTR argv)
 {
-	char *file, **argv;
-	file = int_readpath(a0);
-	argv = int_readarg(a1);
-	free(argv[0]);
-	argv[0] = file;
-	v0 = execvp(file, argv);
-	*errnop = errno;
-	int_freearg(argv);
+	int result;
+	char *_file = int_readstr(file);
+	char **_argv = int_readarg(argv);
+	char *pathname = int_cvtpath(_file);
+	if (pathname) _argv[0] = pathname;
+	result = execvp(pathname ? pathname : _file, _argv);
+	free(pathname);
+	free(_argv);
+	return result;
 }

@@ -1,6 +1,10 @@
 #include "app.h"
 
-void lib_ungetc(CPU *cpu)
+int lib_ungetc(int c, IRIX_FILE *stream)
 {
-	v0 = int_ungetc(a0, cpu_ptr(a1));
+	if (c == EOF || stream->_base == stream->_ptr) return EOF;
+	stream->_flag &= ~IOEOF;
+	stream->_ptr--;
+	stream->_cnt++;
+	return *cpu_u8(stream->_ptr) = c;
 }

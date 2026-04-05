@@ -17,7 +17,7 @@ Build:
 ```
 make
 ```
-Most platforms should work with `mmap` and `alloca` functionality.  If your compiler does not support `alloca`, remove `-DALLOCA` from `CPPFLAGS`.  If the software builds, but you have issues running the software, you may try removing `-DMMAP`.  You will have to rebuild the software from scratch if you change these flags:
+Most platforms should work with `mmap` functionality.  If the software builds, but you have issues running the software, you may try removing `-DMMAP`.  You will have to rebuild the software from scratch if you change these flags:
 ```
 make clean && make
 ```

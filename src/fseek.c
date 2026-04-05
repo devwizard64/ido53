@@ -1,7 +1,10 @@
 #include "app.h"
 
-void lib_fseek(CPU *cpu)
+int lib_fseek(IRIX_FILE *stream, long offset, int whence)
 {
-	v0 = int_fseek(cpu_ptr(a0), a1, a2);
-	*errnop = errno;
+	lib_fflush(stream);
+	stream->_flag &= ~IOEOF;
+	if (stream->_flag & IORW) stream->_flag &= ~(IOREAD|IOWRT);
+	if (lseek(stream->_file, offset, whence) < 0) return EOF;
+	return 0;
 }

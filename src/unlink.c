@@ -1,9 +1,6 @@
 #include "app.h"
 
-void lib_unlink(CPU *cpu)
+int lib_unlink(PTR path)
 {
-	char *pathname = int_readpath(a0);
-	v0 = unlink(pathname);
-	*errnop = errno;
-	free(pathname);
+	return unlink(int_readstr(path));
 }

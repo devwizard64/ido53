@@ -1,28 +1,28 @@
 #include "app.h"
 
-void int_writestat(struct irix_stat *irix_statbuf, struct stat *statbuf)
+void int_writestat(struct irix_stat *dst, struct stat *src)
 {
-	irix_statbuf->st_dev            = statbuf->st_dev;
-	irix_statbuf->st_ino            = statbuf->st_ino;
-	irix_statbuf->st_mode           = statbuf->st_mode;
-	irix_statbuf->st_nlink          = statbuf->st_nlink;
-	irix_statbuf->st_uid            = statbuf->st_uid;
-	irix_statbuf->st_gid            = statbuf->st_gid;
-	irix_statbuf->st_rdev           = statbuf->st_rdev;
-	irix_statbuf->st_size           = statbuf->st_size;
+	dst->st_dev            = src->st_dev;
+	dst->st_ino            = src->st_ino;
+	dst->st_mode           = src->st_mode;
+	dst->st_nlink          = src->st_nlink;
+	dst->st_uid            = src->st_uid;
+	dst->st_gid            = src->st_gid;
+	dst->st_rdev           = src->st_rdev;
+	dst->st_size           = src->st_size;
 #ifdef __APPLE__
-	irix_statbuf->st_atim.tv_sec    = statbuf->st_atimespec.tv_sec;
-	irix_statbuf->st_atim.tv_nsec   = statbuf->st_atimespec.tv_nsec;
-	irix_statbuf->st_mtim.tv_sec    = statbuf->st_mtimespec.tv_sec;
-	irix_statbuf->st_mtim.tv_nsec   = statbuf->st_mtimespec.tv_nsec;
-	irix_statbuf->st_ctim.tv_sec    = statbuf->st_ctimespec.tv_sec;
-	irix_statbuf->st_ctim.tv_nsec   = statbuf->st_ctimespec.tv_nsec;
+	dst->st_atim.tv_sec    = src->st_atimespec.tv_sec;
+	dst->st_atim.tv_nsec   = src->st_atimespec.tv_nsec;
+	dst->st_mtim.tv_sec    = src->st_mtimespec.tv_sec;
+	dst->st_mtim.tv_nsec   = src->st_mtimespec.tv_nsec;
+	dst->st_ctim.tv_sec    = src->st_ctimespec.tv_sec;
+	dst->st_ctim.tv_nsec   = src->st_ctimespec.tv_nsec;
 #else
-	irix_statbuf->st_atim.tv_sec    = statbuf->st_atim.tv_sec;
-	irix_statbuf->st_atim.tv_nsec   = statbuf->st_atim.tv_nsec;
-	irix_statbuf->st_mtim.tv_sec    = statbuf->st_mtim.tv_sec;
-	irix_statbuf->st_mtim.tv_nsec   = statbuf->st_mtim.tv_nsec;
-	irix_statbuf->st_ctim.tv_sec    = statbuf->st_ctim.tv_sec;
-	irix_statbuf->st_ctim.tv_nsec   = statbuf->st_ctim.tv_nsec;
+	dst->st_atim.tv_sec    = src->st_atim.tv_sec;
+	dst->st_atim.tv_nsec   = src->st_atim.tv_nsec;
+	dst->st_mtim.tv_sec    = src->st_mtim.tv_sec;
+	dst->st_mtim.tv_nsec   = src->st_mtim.tv_nsec;
+	dst->st_ctim.tv_sec    = src->st_ctim.tv_sec;
+	dst->st_ctim.tv_nsec   = src->st_ctim.tv_nsec;
 #endif
 }

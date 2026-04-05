@@ -1,8 +1,14 @@
 #include "app.h"
 
-void lib_sprintf(CPU *cpu)
+int lib_vsprintf(PTR s, PTR format, PTR arg)
 {
-	*cpu_s32(sp+0x08) = a2;
-	*cpu_s32(sp+0x0C) = a3;
-	v0 = int_vxprintf(xsprintf, cpu, a1, sp+0x08);
+	int n;
+	IRIX_FILE stream;
+	stream._cnt = 0x7FFFFFFF;
+	stream._ptr = stream._base = s;
+	stream._flag = IOFBF|IOWRT;
+	stream._file = -1;
+	n = lib__doprnt(format, arg, &stream);
+	*cpu_s8(s+n++) = '\0';
+	return n;
 }

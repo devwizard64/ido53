@@ -1,14 +1,11 @@
 #include "app.h"
 
-void lib_strncpy(CPU *cpu)
+PTR lib_strncpy(PTR s1, PTR s2, size_t n)
 {
-#ifdef EB
-	strncpy(cpu_ptr(v0 = a0), cpu_ptr(a1), a2);
-#else
-	v0 = a0;
-	while (a2--)
+	size_t i;
+	for (i = 0; i < n; i++)
 	{
-		if ((*cpu_s8(a0++) = *cpu_s8(a1++)) == '\0') break;
+		if ((*cpu_s8(s1+i) = *cpu_s8(s2+i)) == '\0') break;
 	}
-#endif
+	return s1;
 }

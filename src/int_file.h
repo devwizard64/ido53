@@ -28,21 +28,19 @@ typedef struct
 }
 IRIX_FILE;
 
-extern IRIX_FILE *__iob;
-extern PTR *_bufendtab;
+extern PTR *const _bufendtab;
+extern IRIX_FILE *const __iob;
+
+#define irix_stdin (&__iob[0])
+#define irix_stdout (&__iob[1])
+#define irix_stderr (&__iob[2])
 
 extern PTR int_fdopen(
 	IRIX_FILE *fp, int fd, const char *pathname, const char *mode
 );
-extern int int_fclose(IRIX_FILE *fp);
-extern int int_fflush(IRIX_FILE *fp);
-extern int int_fseek(IRIX_FILE *fp, long offset, int whence);
-extern int int_filbuf(IRIX_FILE *fp);
-extern int int_flsbuf(int c, IRIX_FILE *fp);
-#define int_getc(fp) \
-	(--(fp)->_cnt < 0 ? int_filbuf(fp) : (int)*cpu_u8((fp)->_ptr++))
-#define int_putc(c, fp) \
-	(--(fp)->_cnt < 0 ? int_flsbuf(c, fp) : (int)(*cpu_u8((fp)->_ptr++) = (c)))
-extern int int_fgetc(IRIX_FILE *fp);
-extern int int_fputc(int c, IRIX_FILE *fp);
-extern int int_ungetc(int c, IRIX_FILE *fp);
+
+#define int_getc(p) \
+	(--(p)->_cnt < 0 ? lib___filbuf(p) : (int)*cpu_u8((p)->_ptr++))
+#define int_putc(x, p) \
+	(--(p)->_cnt < 0 ? lib___flsbuf((x), (p)) : \
+		(int)(*cpu_u8((p)->_ptr++) = (x)))

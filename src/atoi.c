@@ -1,8 +1,6 @@
 #include "app.h"
 
-void lib_atoi(CPU *cpu)
+int lib_atoi(PTR str)
 {
-	char *nptr = int_readstr(a0);
-	v0 = atoi(nptr);
-	int_freestr(nptr);
+	return atoi(int_readstr(str));
 }

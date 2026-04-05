@@ -1,20 +1,24 @@
 #include "app.h"
+#include <fcntl.h>
 
-static char *int_tempnam(const char *dir, const char *pfx)
+PTR lib_tempnam(PTR dir, PTR pfx)
 {
 	int i, fd;
-	char *path;
+	PTR path;
+	char *_path;
+	const char *_dir = dir ? int_readstr(dir) : NULL;
+	const char *_pfx = pfx ? int_readstr(pfx) : NULL;
 	const char *tmp = getenv("TMPDIR");
-	if (!pfx) pfx = "";
-	if (!tmp || tmp[0] == '\0') tmp = dir;
+	if (!_pfx) _pfx = "";
+	if (!tmp || tmp[0] == '\0') tmp = _dir;
 	if (!tmp || tmp[0] == '\0') tmp = P_tmpdir;
-	if ((path = malloc(strlen(tmp)+1+5+2*sizeof(int)+1+2*sizeof(int)+1)))
+	if ((_path = malloc(strlen(tmp)+1+5+2*sizeof(int)+1+2*sizeof(int)+1)))
 	{
-		int pid = getpid() ^ (intptr_t)int_tempnam;
+		int pid = getpid() ^ (intptr_t)lib_tempnam;
 		for (i = 0;; i++)
 		{
-			sprintf(path, "%s/%.5s%x.%x", tmp, pfx, pid, i);
-			if ((fd = open(path, O_RDONLY, 0)) < 0)
+			sprintf(_path, "%s/%.5s%x.%x", tmp, _pfx, pid, i);
+			if ((fd = open(_path, O_RDONLY, 0)) < 0)
 			{
 				if (errno == ENOENT) break;
 			}
@@ -23,22 +27,10 @@ static char *int_tempnam(const char *dir, const char *pfx)
 				close(fd);
 			}
 		}
+		path = lib_malloc(strlen(_path)+1);
+		int_writestr(path, _path);
+		free(_path);
+		return path;
 	}
-	return path;
-}
-
-void lib_tempnam(CPU *cpu)
-{
-	char *dir = a0 ? int_readstr(a0) : NULL;
-	char *pfx = a1 ? int_readstr(a1) : NULL;
-	char *path = int_tempnam(dir, pfx);
-	*errnop = errno;
-	int_freestr(dir);
-	int_freestr(pfx);
-	if (path)
-	{
-		v0 = int_malloc(strlen(path)+1);
-		int_writestr(v0, path);
-		free(path);
-	}
+	return NULLPTR;
 }

@@ -1,10 +1,9 @@
 #include "app.h"
 
-void lib_gethostname(CPU *cpu)
+int lib_gethostname(PTR name, int namelen)
 {
-	char *name = int_alcmem(a0, a1);
-	v0 = gethostname(name, a1);
-	*errnop = errno;
-	if (!v0) int_flushmem(a0, name, a1);
-	int_freemem(name);
+	char *_name = int_alcmem(name, namelen);
+	int result = gethostname(_name, namelen);
+	if (!result) int_flushmem(name, _name, namelen);
+	return result;
 }

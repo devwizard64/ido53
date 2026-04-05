@@ -1,17 +1,16 @@
 #include "app.h"
 
-void lib_fread(CPU *cpu)
+int lib_fread(PTR ptr, size_t size, size_t nitems, IRIX_FILE *stream)
 {
-	int i, c;
-	IRIX_FILE *fp = cpu_ptr(a3);
-	for (v0 = 0; v0 < a2; v0++)
+	size_t i, n;
+	int c;
+	for (n = 0; n < nitems; n++)
 	{
-		for (i = 0; i < a1; i++)
+		for (i = 0; i < size; i++)
 		{
-			if ((c = int_fgetc(fp)) == EOF) goto end;
-			*cpu_s8(a0++) = c;
+			if ((c = lib_fgetc(stream)) == EOF) return n;
+			*cpu_s8(ptr++) = c;
 		}
 	}
-end:
-	*errnop = errno;
+	return n;
 }

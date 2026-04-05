@@ -1,4 +1,5 @@
 #include "app.h"
+#include <fcntl.h>
 
 struct irix_flock
 {
@@ -24,7 +25,7 @@ static void int_readflock(struct flock *lock, struct irix_flock *irix_lock)
 	case 02: lock->l_type = F_WRLCK; break;
 	case 03: lock->l_type = F_UNLCK; break;
 	default:
-		eprint("fcntl(F_SETLKW): unknown l_type %d\n", irix_lock->l_type);
+		fatal("fcntl(F_SETLKW): unknown l_type %d\n", irix_lock->l_type);
 		break;
 	}
 	lock->l_whence  = irix_lock->l_whence;
@@ -33,17 +34,17 @@ static void int_readflock(struct flock *lock, struct irix_flock *irix_lock)
 	lock->l_pid     = irix_lock->l_pid;
 }
 
-void lib_fcntl(CPU *cpu)
+int lib_fcntl(int fildes, int cmd, PTR arg)
 {
 	struct flock lock;
-	switch (a1)
+	switch (cmd)
 	{
 	case 7:
-		int_readflock(&lock, cpu_ptr(a2));
-		v0 = fcntl(a0, F_SETLKW, &lock);
-		break;
+		int_readflock(&lock, cpu_ptr(*cpu_s32(arg)));
+		return fcntl(fildes, F_SETLKW, &lock);
 	default:
-		eprint("fcntl(%d) not implemented\n", a1);
+		fatal("fcntl(%d) not implemented\n", cmd);
 		break;
 	}
+	return -1;
 }

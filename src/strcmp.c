@@ -1,18 +1,14 @@
 #include "app.h"
 
-void lib_strcmp(CPU *cpu)
+int lib_strcmp(PTR s1, PTR s2)
 {
-#ifdef EB
-	v0 = strcmp(cpu_ptr(a0), cpu_ptr(a1));
-#else
 	for (;;)
 	{
-		unsigned char a = *cpu_u8(a0++);
-		unsigned char b = *cpu_u8(a1++);
-		if (a < b) {v0 = -1; return;}
-		if (a > b) {v0 = +1; return;}
+		unsigned char a = *cpu_u8(s1++);
+		unsigned char b = *cpu_u8(s2++);
+		if (a < b) return -1;
+		if (a > b) return +1;
 		if (a == '\0') break;
 	}
-	v0 = 0;
-#endif
+	return 0;
 }

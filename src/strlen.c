@@ -1,6 +1,8 @@
 #include "app.h"
 
-void lib_strlen(CPU *cpu)
+size_t lib_strlen(PTR s)
 {
-	v0 = int_strlen(a0);
+	size_t n;
+	for (n = 0; *cpu_s8(s+n) != '\0'; n++);
+	return n;
 }

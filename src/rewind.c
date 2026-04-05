@@ -1,8 +1,7 @@
 #include "app.h"
 
-void lib_rewind(CPU *cpu)
+void lib_rewind(IRIX_FILE *stream)
 {
-	IRIX_FILE *fp = cpu_ptr(a0);
-	int_fseek(fp, 0, SEEK_SET);
-	fp->_flag &= ~IOERR;
+	lib_fseek(stream, 0, SEEK_SET);
+	stream->_flag &= ~IOERR;
 }

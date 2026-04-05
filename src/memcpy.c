@@ -1,18 +1,15 @@
 #include "app.h"
 
-void lib_memcpy(CPU *cpu)
+PTR lib_memcpy(PTR s1, PTR s2, size_t n)
 {
-#ifdef EB
-	memmove(cpu_ptr(v0 = a0), cpu_ptr(a1), a2);
-#else
-	v0 = a0;
-	if (a0 > a1)
+	size_t i;
+	if (s1 > s2)
 	{
-		while (a2--) *cpu_s8(a0+a2) = *cpu_s8(a1+a2);
+		for (i = 0; i < n; i++) *cpu_s8(s1+n-1-i) = *cpu_s8(s2+n-1-i);
 	}
 	else
 	{
-		while (a2--) *cpu_s8(a0++) = *cpu_s8(a1++);
+		for (i = 0; i < n; i++) *cpu_s8(s1+i) = *cpu_s8(s2+i);
 	}
-#endif
+	return s1;
 }

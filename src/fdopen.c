@@ -1,9 +1,6 @@
 #include "app.h"
 
-void lib_fdopen(CPU *cpu)
+PTR lib_fdopen(int fildes, PTR type)
 {
-	char *mode = int_readstr(a1);
-	v0 = int_fdopen(NULL, a0, NULL, mode);
-	*errnop = errno;
-	int_freestr(mode);
+	return int_fdopen(NULL, fildes, NULL, int_readstr(type));
 }

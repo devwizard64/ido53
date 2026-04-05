@@ -1,6 +1,6 @@
 #include "app.h"
 
-void lib__cleanup(UNUSED CPU *cpu)
+void lib__cleanup(void)
 {
-	int_fflush(NULL);
+	lib_fflush(NULL);
 }

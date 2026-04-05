@@ -1,36 +1,25 @@
 #include "app.h"
 
-void lib_strtok(CPU *cpu)
+PTR lib_strtok(PTR s1, PTR s2)
 {
 	static char *saveptr;
 #ifdef EB
-	char *tok = strtok_r(cpu_ptr(a0), cpu_ptr(a1), &saveptr);
-	v0 = tok ? __ptr(tok) : NULLPTR;
+	char *tok = strtok_r(cpu_ptr(s1), cpu_ptr(s2), &saveptr);
+	return tok ? __ptr(tok) : NULLPTR;
 #else
 	static PTR ptr = NULLPTR;
 	static char *str = NULL;
-	char *delim, *tok;
-	if (a0)
+	char *tok = NULL;
+	if (s1)
 	{
-		ptr = a0;
-		free(str);
-		tok = str = int_alcstr(ptr);
+		ptr = s1;
+		tok = str = int_strrd(realloc(str, lib_strlen(ptr)+1), ptr);
 	}
-	else
+	if ((tok = strtok_r(tok, int_readstr(s2), &saveptr)))
 	{
-		tok = NULL;
+		int_flushstr(ptr + (tok-str), tok);
+		return ptr + (tok-str);
 	}
-	delim = int_readstr(a1);
-	tok = strtok_r(tok, delim, &saveptr);
-	int_freestr(delim);
-	if (tok)
-	{
-		v0 = ptr + (tok-str);
-		int_flushstr(v0, tok);
-	}
-	else
-	{
-		v0 = NULLPTR;
-	}
+	return NULLPTR;
 #endif
 }

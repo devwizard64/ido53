@@ -327,6 +327,13 @@ gpr = [
 	"t8","t9","k0","k1","gp","sp","fp","ra",
 ]
 
+glbreg = {"v0","v1","a0","a1","a2","a3","sp","f0","f12","f14"}
+
+savereg = {
+	"s0","s1","s2","s3","s4","s5","s6","s7","fp","ra",
+	"f20","f22","f24","f26","f28","f30"
+}
+
 class Inst:
 	# disassembly
 	def RS(self, inst): return gpr[inst["rs"]]
@@ -616,15 +623,20 @@ class Inst:
 
 	# compiling
 	def get(self, reg):
+		if isinstance(reg, str):
+			r = reg.partition(".")[0]
+			if r in glbreg: reg = "cpu->" + reg
+			# if reg in self.proc.val: return self.proc.val[reg]
 		return reg
 	def set(self, reg, val):
 		if reg == symtab["_gp_disp"]: return
 		assert isinstance(reg, str)
-		if reg.partition(".")[0] in self.proc.reg:
+		r = reg.partition(".")[0]
+		if r in self.proc.reg:
+			if r in glbreg: reg = "cpu->" + reg
+			if isinstance(val, int):    self.proc.val[reg] = val
+			elif reg in self.proc.val:  self.proc.val.pop(reg)
 			self.out.append(makeop(reg, "=", val))
-	def jump(self, op):
-		self.out.append(op)
-		self.slot = None
 	def branch(self, cond, target):
 		if cond:
 			self.cond = cond
@@ -636,14 +648,17 @@ class Inst:
 		hi = cast(self.get(gpr[i+0]), t)
 		lo = cast(self.get(gpr[i+1]), "uint32_t")
 		return makeop(makeop(hi, "<<", 32), "|", lo)
-	def set64(self, i, v):
-		self.set(gpr[i+0], makeop(v, ">>", 32))
-		self.set(gpr[i+1], v)
+	def set64(self, v):
+		self.proc.reg.add("ll")
+		self.set("ll", v)
+		v = self.get("ll")
+		self.set("v0", makeop(v, ">>", 32))
+		self.set("v1", v)
 	def ll_op(self, op, l, r):
-		self.set64(2, makeop(self.get64(4, l), op, self.get64(6, r)))
+		self.set64(makeop(self.get64(4, l), op, self.get64(6, r)))
 	def ll_shift(self, op, t):
 		r = makeop(self.get("a3"), "&", 63)
-		self.set64(2, makeop(self.get64(4, t), op, r))
+		self.set64(makeop(self.get64(4, t), op, r))
 	# ll.c
 	def ull_rshift(self):
 		self.ll_shift(">>", "uint64_t")
@@ -663,13 +678,13 @@ class Inst:
 		self.ll_shift(">>", "int64_t")
 	# llcvt.c
 	def d_to_ll(self):
-		self.set64(2, cast(self.get("f12.d"), "int64_t"))
+		self.set64(cast(self.get("f12.d"), "int64_t"))
 	def f_to_ll(self):
-		self.set64(2, cast(self.get("f12.f[IX]"), "int64_t"))
+		self.set64(cast(self.get("f12.f[IX]"), "int64_t"))
 	def d_to_ull(self):
-		self.set64(2, cast(self.get("f12.d"), "uint64_t"))
+		self.set64(cast(self.get("f12.d"), "uint64_t"))
 	def f_to_ull(self):
-		self.set64(2, cast(self.get("f12.f[IX]"), "uint64_t"))
+		self.set64(cast(self.get("f12.f[IX]"), "uint64_t"))
 	def ll_to_d(self):
 		self.set("f0.d", self.get64(4, "int64_t"))
 	def ll_to_f(self):
@@ -681,24 +696,223 @@ class Inst:
 
 	inline = {
 		# ll.c
-		"lib___ull_rshift": ull_rshift,
-		"lib___ull_rem": ull_rem,
-		"lib___ull_div": ull_div,
-		"lib___ll_lshift": ll_lshift,
-		"lib___ll_rem": ll_rem,
-		"lib___ll_div": ll_div,
-		"lib___ll_mul": ll_mul,
-		"lib___ll_rshift": ll_rshift,
+		"__ull_rshift": ull_rshift,
+		"__ull_rem": ull_rem,
+		"__ull_div": ull_div,
+		"__ll_lshift": ll_lshift,
+		"__ll_rem": ll_rem,
+		"__ll_div": ll_div,
+		"__ll_mul": ll_mul,
+		"__ll_rshift": ll_rshift,
 		# llcvt.c
-		"lib___d_to_ll": d_to_ll,
-		"lib___f_to_ll": f_to_ll,
-		"lib___d_to_ull": d_to_ull,
-		"lib___f_to_ull": f_to_ull,
-		"lib___ll_to_d": ll_to_d,
-		"lib___ll_to_f": ll_to_f,
-		"lib___ull_to_d": ull_to_d,
-		"lib___ull_to_f": ull_to_f,
+		"__d_to_ll": d_to_ll,
+		"__f_to_ll": f_to_ll,
+		"__d_to_ull": d_to_ull,
+		"__f_to_ull": f_to_ull,
+		"__ll_to_d": ll_to_d,
+		"__ll_to_f": ll_to_f,
+		"__ull_to_d": ull_to_d,
+		"__ull_to_f": ull_to_f,
 	}
+
+	lib = {
+		# proto:flag:name
+		# proto: v=void; i=int; u=unsigned; d=double; p=PTR
+		#        P=void *; N=void * (nullable); *=vararg; &=cpu
+		# flag: e=errno
+		"_rld_new_interface": None,
+		"sqrt": "dd::",
+		# "regcmp": "p*",
+		# "regex": "ppp*",
+		"memcpy": "pppu",
+		"_doprnt": "ippP",
+		"strlen": "up",
+		"malloc": "pu:e",
+		"memccpy": "pppiu",
+		"strchr": "ppi",
+		"free": "vp",
+		# "strpbrk": "ppp",
+		"strcmp": "ipp",
+		"strcpy": "ppp",
+		"memset": "ppiu",
+		"fgets": "ppiP:e",
+		"bcopy": "vppi",
+		"strncmp": "ippu",
+		"bzero": "vpi",
+		"sprintf": "ipp*::lib_vsprintf",
+		"calloc": "puu:e",
+		# "ioctl": "iii*:e",
+		"memcmp": "ippu",
+		"strcat": "ppp",
+		"getenv": "pp",
+		"realloc": "ppu:e",
+		"read": "iipu:e",
+		"strncpy": "pppu",
+		"strtok": "ppp",
+		"write": "iipu:e",
+		"tolower": "ii::",
+		# "strncat": "pppu",
+		"strdup": "pp:e",
+		# "qsort": "vPuuQ",
+		"getcwd": "ppi:e",
+		"bcmp": "ippi",
+		"strtol": "ippi:e",
+		"__filbuf": "iP:e",
+		"strrchr": "ppi",
+		"atoi": "ip",
+		"stat": "ipP:e",
+		"fflush": "iN:e",
+		"fclose": "iP:e",
+		"gettxt": "ppp",
+		"fprintf": "iPp*::lib_vfprintf",
+		"fopen": "ppp:e",
+		"fstat": "iiP:e",
+		"isatty": "ii:e:",
+		"open": "ipii:e",
+		"access": "ipi:e",
+		"sbrk": "pi",
+		# "ftell": "iP",
+		"close": "ii:e:",
+		"signal": "pip:ep",
+		"times": "uP:e",
+		"atof": "dp",
+		"fcntl": "iii*:e",
+		"lseek": "iiii:e:",
+		# "_atod": "dpii",
+		"wait": "iN:e:",
+		"fread": "ipuuP:e",
+		"exit": "vi::",
+		"getpid": "i::",
+		"fork": "i:e:",
+		"strstr": "ppp",
+		"_exithandle": None,
+		"gethostname": "ipi:e",
+		"__flsbuf": "iiP",
+		"time": "uN:e",
+		"ungetc": "iiP",
+		# "fcvt": "pdiPP",
+		"_prctl": "ii",
+		"chmod": "ipi:e",
+		"getpagesize": "i::",
+		"rename": "ipp:e",
+		"unlink": "ip:e",
+		# "mmap": "ppuiiii:e",
+		"dup2": "iii:e:",
+		"pathconf": "ipi",
+		"ftruncate": "iii:e:",
+		"flock": "iii:e:",
+		# "mkstemp": "ip:e",
+		# "strerror": "pi:e",
+		# "strcspn": "upp",
+		# "gets": "pp",
+		"__semputc": "iiP::lib_fputc",
+		"mktemp": "pp",
+		"__semgetc": "iP:e:lib_fgetc",
+		"fseek": "iPii:e",
+		"fwrite": "ipuuP:e",
+		"fgetc": "iP:e",
+		"fdopen": "pip:e",
+		"freopen": "pppP:e",
+		"puts": "ip",
+		"rewind": "vP",
+		"setvbuf": "iPpiu:e",
+		"fputc": "iiP",
+		"fscanf": "iPp*:e:lib_vfscanf",
+		"pipe": "iP:e:",
+		# "munmap": "ipu:e",
+		"kill": "iii:e:",
+		"umask": "ii::",
+		"utime": "ipN:e",
+		"sigset": "pip:ep",
+		"creat": "ipi:e",
+		"dup": "ii:e:",
+		"ctime": "pP",
+		# "tmpnam": "pp",
+		"_cleanup": "v",
+		"tempnam": "ppp:e",
+		"set_fpc_csr": "ii",
+		"get_fpc_csr": "i",
+		"fp_class_d": "id",
+		"atol": "ip",
+		"strtoul": "uppi:e",
+		"strtod": "dpp:e",
+		"toupper": "ii::",
+		"ldexp": "ddi:e:",
+		# "ecvt": "pdiPP",
+		"strtoull": "lppi:e",
+		"strtoll": "lppi:e",
+		"perror": "vp",
+		"tsearch": "p&ppQ",
+		"tfind": "p&ppQ",
+		"__assert": "vppi",
+		"execvp": "ipp:e",
+		"execlp": "ip*:e:lib_execvp",
+		"getpgrp": "i:e:",
+		"printf": "ip*::lib_vprintf",
+		"_exit": "vi::",
+	}
+	def call(self, name):
+		global proc_flag
+		defname = name[4:]
+		if defname in self.inline:
+			self.inline[defname](self)
+			return
+		if defname not in self.lib:
+			self.out.append("notimpl(\"%s\")" % defname)
+			return
+		info = self.lib[defname]
+		if info is None: return
+		info = info.split(":")
+		if len(info) > 2: name = info[2] if info[2] else defname
+		i = 0
+		arg = []
+		for a in info[0][1:]:
+			if a == "&":
+				arg.append("cpu")
+			elif a == "*":
+				arg.append(makeop(self.get("sp"), "+", 4*i))
+				for i in range(i, 4): self.out.append(makeop(makeop(
+					"*cpu_s32", "(", makeop(self.get("sp"), "+", 4*i)
+				), "=", self.get("a%d" % i)))
+			elif a == "d":
+				assert i < 4
+				i = (i+1) & ~1
+				arg.append(self.get("f%d.d" % (12+i)))
+				i += 2
+			else:
+				if i < 4:
+					v = self.get("a%d" % i)
+					if a == "u": v = cast(v, "uint32_t")
+				else:
+					v = makeop(
+						"*cpu_u32" if a in "uPNQ" else "*cpu_s32", "(",
+						makeop(self.get("sp"), "+", 4*i)
+					)
+				if a in "iup": arg.append(v)
+				elif a == "P": arg.append(makeop("cpu_ptr", "(", v))
+				elif a == "N":
+					arg.append("%s ? cpu_ptr(%s) : NULL" % (v, v))
+				elif a == "Q":
+					if v in self.proc.val:
+						arg.append(addrtab[self.proc.val[v]])
+					else:
+						arg.append(makeop("__getproc", "(", v))
+						proc_flag = True
+				else:
+					raise RuntimeError("invalid arg %s" % a)
+				i += 1
+		op = makeop(name, "(", tuple(arg))
+		v = info[0][0]
+		if v == "v": self.out.append(op)
+		elif v in "ipu": self.set("v0", op)
+		elif v == "l": self.set64(op)
+		elif v == "d": self.set("f0.d", op)
+		else: raise RuntimeError("invalid return %s" % v)
+		if len(info) > 1:
+			if "e" in info[1]: self.out.append(makeop(
+				makeop("*cpu_s32", "(", symtab["errno"]), "=", "errno"
+			))
+			if "p" in info[1]: proc_flag = True
 
 	def NOP(self):
 		return
@@ -731,32 +945,29 @@ class Inst:
 		if self.op == "sltu" and rt == 0: v = 0
 		self.set(rd, v)
 	def RET(self):
-		self.jump("return")
+		self.slot = None
+		self.out.append("return")
 	def J(self, target):
 		assert hasattr(self, "jtbl"), self
-		self.jump("goto *jtbl%X[%s]" % (self.jtbl, self.get(target)))
+		self.slot = None
+		self.out.append("goto *jtbl%X[%s]" % (self.jtbl, self.get(target)))
 	def JAL(self, target):
-		global call_flag
+		global proc_flag
+		self.slot = None
 		target = self.get(target)
 		if isinstance(target, int):
 			for addr in (target, target-12):
-				if addr in addrtab:
-					name = addrtab[addr]
-					if name in self.inline:
-						self.inline[name](self)
-						self.slot = None
-						return
-					if name in {
-						"lib_signal",
-						"lib_sigset",
-						"lib_tsearch",
-						"lib_tfind",
-					}: call_flag = True
-					self.jump(makeop(name, "(", "cpu"))
-					return
-			debug("missing %X (%X)" % (target, self.addr))
-		self.jump(makeop("__call", "(", ("cpu", target)))
-		call_flag = True
+				if addr in addrtab: break
+			else:
+				raise RuntimeError("missing %X (%X)" % (target, self.addr))
+			name = addrtab[addr]
+			if name.startswith("lib_"):
+				self.call(name)
+				return
+		else:
+			name = makeop("__getproc", "(", target)
+			proc_flag = True
+		self.out.append(makeop(name, "(", "cpu"))
 	def BREAK(self, code):
 		self.out.append(makeop("__break", "(", ("cpu", code)))
 	def MFHI(self, rd):
@@ -987,16 +1198,6 @@ class Inst:
 # Proc
 ################################################################################
 
-glbreg = {
-	"v0","v1","a0","a1","a2","a3",
-	"s0","s1","s2","s3","s4","s5","s6","s7","sp",
-	"f0","f12","f14",
-}
-savereg = {
-	"fp","ra",
-	"f20","f22","f24","f26","f28","f30",
-}
-
 class Proc:
 	def __init__(self, asm, addr, inst, jtbl):
 		self.asm = asm
@@ -1005,6 +1206,7 @@ class Proc:
 		self.jtbl = jtbl
 		self.btbl = set([x for i in jtbl for x in jtbl[i]])
 		self.reg = glbreg.copy() # reg usage
+		self.val = {} # reg value
 		self.out = [] # inst in output order
 		# lui gp,xxx
 		# addu gp,gp,xxx
@@ -1023,6 +1225,7 @@ class Proc:
 		for inst in self.inst: inst.alloc(self)
 		delay = None
 		for inst in self.inst:
+			if inst.addr in self.btbl: self.val.clear()
 			inst.compile()
 			if delay:
 				delay.slot = inst
@@ -1044,16 +1247,19 @@ class Proc:
 			) % i)
 			for i in self.jtbl[i]: print("\t\t&&_%X," % i)
 			print("\t};")
+		self.reg -= glbreg
 		self.output_reg((
-			"at",
-			"t0","t1","t2","t3","t4","t5","t6","t7","t8","t9",
-			"gp","fp","ra","hi","lo",
+			"at","v0","v1","a0","a1","a2","a3",
+			"t0","t1","t2","t3","t4","t5","t6","t7",
+			"s0","s1","s2","s3","s4","s5","s6","s7",
+			"t8","t9","gp","sp","fp","ra","hi","lo",
 		), "int32_t", "=0")
 		self.output_reg((
-			"f2","f4","f6","f8","f10","f16","f18",
-			"f20","f22","f24","f26","f28","f30",
+			"f0","f2","f4","f6","f8","f10","f12","f14",
+			"f16","f18","f20","f22","f24","f26","f28","f30",
 		), "REG", "={0}")
 		self.output_reg(("c1c",), "int", "=0")
+		self.output_reg(("ll",), "int64_t")
 		if "gp" in self.reg: print("\tgp = 0x%X;" % symtab["_gp_disp"])
 		for inst in self.out: inst.output()
 		print("}")
@@ -1267,9 +1473,9 @@ class Asm:
 # loading
 
 symtab = {} # (pre-)name to addr translation
-undtab = {"__ctype", "errno", "_bufendtab", "__iob"} # symbol import
 addrtab = {} # address to (post-)name translation
-call_flag = False # program requires __call
+undtab = {"__ctype", "errno", "_bufendtab", "__iob"} # symbol import
+proc_flag = False # program requires __getproc
 
 # process symtab from executable
 def loadsym(elf):
@@ -1357,13 +1563,26 @@ def memmove():
 
 def main(argv):
 	if len(argv) < 2:
-		sys.stderr.write("usage: %s <elf> [ext ...]" % argv[0])
+		sys.stderr.write("usage: %s [-s] <elf> [ext ...]" % argv[0])
 		return 1
 
-	# load images and extract symbol info
-	elf = Elf32(argv[1])
-	loadsym(elf)
-	for path in argv[2:]: loadext(Elf32(path))
+	elf = None
+	for arg in argv[1:]:
+		if arg.startswith("-"):
+			if arg == "-s":
+				# global s2 (ugen hack)
+				glbreg.add("s2")
+				savereg.discard("s2")
+			else:
+				raise RuntimeError("unknown option %s" % arg)
+		elif not elf:
+			# load executable
+			elf = Elf32(arg)
+			loadsym(elf)
+		else:
+			# load shared library symbols
+			loadext(Elf32(arg))
+
 	gpr[28] = symtab["_gp_disp"]
 
 	# disassemble
@@ -1379,48 +1598,40 @@ def main(argv):
 	for proc in asm.proc: proc.compile()
 
 	# program output
-	ext = sorted([
-		addr for addr in addrtab.keys()
-		if addrtab[addr].startswith("lib_")
-	])
-	sym = [proc.addr for proc in asm.proc]
-	print(
-		"#include \"app.h\"\n\n"
-		"#ifndef MMAP\n"
-		"char cpu_mem[MEM_SIZE];\n"
-		"#endif\n"
-	)
-	for addr in ext: print("extern void %s(CPU *cpu);" % addrtab[addr])
+	print("#include \"app.h\"\n")
+	print("PTR *const _bufendtab = cpu_ptr(0x%X);" % symtab["_bufendtab"])
+	print("IRIX_FILE *const __iob = cpu_ptr(0x%X);" % symtab["__iob"])
 	print("")
-	for addr in sym: print("static void %s(CPU *cpu);" % addrtab[addr])
+	for proc in asm.proc:
+		print("static void %s(CPU *cpu);" % addrtab[proc.addr])
 	print("")
-	if call_flag: # generate __call
+	if proc_flag: # generate __getproc
 		print(
 			"typedef struct\n{\n"
 			"\tPTR addr;\n"
-			"\tvoid (*call)(CPU *cpu);\n"
-			"}\nCALL;\n\n"
-			"static const CALL calltab[] =\n{"
+			"\tPROC proc;\n"
+			"}\nProcEntry;\n\n"
+			"static const ProcEntry proctab[] =\n{"
 		)
-		calltab = sorted(ext+sym)
-		for addr in calltab: print("\t{0x%X, %s}," % (addr, addrtab[addr]))
+		for proc in asm.proc:
+			print("\t{0x%X, %s}," % (proc.addr, addrtab[proc.addr]))
 		print((
 			"\t{-1, NULL},\n"
 			"};\n\n"
-			"void __call(CPU *cpu, PTR addr)\n"
+			"PROC __getproc(PTR addr)\n"
 			"{\n"
-			"\tconst CALL *call = calltab;\n"
+			"\tconst ProcEntry *entry = proctab;\n"
 			"\tunsigned int len = %d;\n"
 			"\tdo\n"
 			"\t{\n"
 			"\t\tif (len > 1) len /= 2;\n"
-			"\t\tif (addr >= call[len].addr) call += len;\n"
-			"\t\telse if (len == 1) edebug(\"__call(0x%%X)\\n\", addr);\n"
+			"\t\tif (addr >= entry[len].addr) entry += len;\n"
+			"\t\telse if (len == 1) fatal(\"no proc for 0x%%X\\n\", addr);\n"
 			"\t}\n"
-			"\twhile (addr != call->addr && addr != call->addr+12);\n"
-			"\tcall->call(cpu);\n"
+			"\twhile (addr != entry->addr && addr != entry->addr+12);\n"
+			"\treturn entry->proc;\n"
 			"}\n"
-		) % len(calltab))
+		) % len(asm.proc))
 	print((
 		"static const uint32_t data[] =\n"
 		"{"
@@ -1429,28 +1640,30 @@ def main(argv):
 		print("\t" + "".join([
 			"0x%.8X," % elf.lwu(addr) for addr in range(addr, addr+16, 4)
 		]))
-	print((
+	print(
 		"};\n\n"
 		"int main(int argc, char *argv[])\n"
 		"{\n"
 		"\tCPU cpu;\n"
 		"\tmemset(&cpu, 0, sizeof(CPU));\n"
-		"\tmemcpy(cpu_ptr(0x%X), data, sizeof(data));\n"
-		"\tint_setexecpath(argv[0]);"
-	) % elf.fdata)
-	print("\terrnop = cpu_s32(0x%X);" % symtab["errno"])
-	print("\t_bufendtab = cpu_ptr(0x%X);" % symtab["_bufendtab"])
-	print("\t__iob = cpu_ptr(0x%X);" % symtab["__iob"])
-	print("\tint_cinit(0x%X, 0x%X);" % (symtab["_end"], symtab["__ctype"]))
-	print("\tcpu._sp = 0x%X;" % (elf.fdata-16))
-	print("\tcpu._a0 = *cpu_s32(0x%X) = argc;" % symtab["__Argc"])
-	print((
-		"\tcpu._a1 = *cpu_s32(0x%X) = int_writearg(argc, argv);"
-	) % symtab["__Argv"])
+		"\texecpath = argv[0];"
+	)
+	print("\tlib_brk(0x%X);" % symtab["_end"])
+	print("\tint_writemem(0x%X, __ctype, 257);" % symtab["__ctype"])
+	print(
+		"\t__iob[0]._file = 0; __iob[0]._flag = IOFBF|IOREAD;\n"
+		"\t__iob[1]._file = 1; __iob[1]._flag = IOLBF|IOWRT;\n"
+		"\t__iob[2]._file = 2; __iob[2]._flag = IOLBF|IOWRT;\n"
+		"\tatexit(lib__cleanup);"
+	)
+	print("\tmemcpy(cpu_ptr(0x%X), data, sizeof(data));" % elf.fdata)
+	print("\tcpu.sp = 0x%X;" % (elf.fdata-16))
+	print("\tcpu.a0 = *cpu_s32(0x%X) = argc;" % symtab["__Argc"])
+	print("\tcpu.a1 = *cpu_s32(0x%X) = int_writearg(argv);" % symtab["__Argv"])
 	print(
 		"\tapp_main(&cpu);\n"
-		"\tint_fflush(NULL);\n"
-		"\treturn cpu._v0;\n}"
+		"\treturn cpu.v0;\n"
+		"}"
 	)
 	for proc in asm.proc: proc.output()
 	return 0

@@ -1,9 +1,9 @@
 #include "app.h"
 
-static char *int_mktemp(char *path)
+PTR lib_mktemp(PTR template)
 {
-	char *start, *trv;
 	struct stat sbuf;
+	char *start, *trv, *path = int_readstr(template);
 	unsigned int pid = getpid();
 	for (trv = path; *trv; ++trv);
 	while (*--trv == 'X')
@@ -17,11 +17,11 @@ static char *int_mktemp(char *path)
 		if (*trv == '/')
 		{
 			*trv = '\0';
-			if (stat(path, &sbuf)) return NULL;
+			if (stat(path, &sbuf)) return NULLPTR;
 			if (!(sbuf.st_mode & S_IFDIR))
 			{
 				errno = ENOTDIR;
-				return NULL;
+				return NULLPTR;
 			}
 			*trv = '/';
 			break;
@@ -31,7 +31,7 @@ static char *int_mktemp(char *path)
 	{
 		for (trv = start;;)
 		{
-			if (!*trv) return NULL;
+			if (!*trv) return NULLPTR;
 			if (*trv == 'z') *trv++ = 'a';
 			else
 			{
@@ -41,15 +41,7 @@ static char *int_mktemp(char *path)
 			}
 		}
 	}
-	return errno == ENOENT ? path : NULL;
-}
-
-void lib_mktemp(CPU *cpu)
-{
-	char *template;
-	v0 = a0;
-	template = int_readstr(a0);
-	int_mktemp(template);
-	int_flushstr(a0, template);
-	int_freestr(template);
+	if (errno != ENOENT) return NULLPTR;
+	int_flushstr(template, path);
+	return template;
 }

@@ -1,9 +1,9 @@
 #include "app.h"
 
-void lib_fstat(CPU *cpu)
+int lib_fstat(int fildes, struct irix_stat *buf)
 {
 	struct stat statbuf;
-	v0 = fstat(a0, &statbuf);
-	*errnop = errno;
-	int_writestat(cpu_ptr(a1), &statbuf);
+	int result = fstat(fildes, &statbuf);
+	if (!result) int_writestat(buf, &statbuf);
+	return result;
 }

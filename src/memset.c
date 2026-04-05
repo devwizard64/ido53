@@ -1,6 +1,8 @@
 #include "app.h"
 
-void lib_memset(CPU *cpu)
+PTR lib_memset(PTR s, int c, size_t n)
 {
-	int_memset(v0 = a0, a1, a2);
+	size_t i;
+	for (i = 0; i < n; i++) *cpu_s8(s+i) = c;
+	return s;
 }

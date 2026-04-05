@@ -1,7 +1,12 @@
 #include "app.h"
 
-void lib_puts(CPU *cpu)
+int lib_puts(PTR s)
 {
-	(void)cpu;
-	eprint("puts() not implemented\n");
+	int c;
+	while ((c = *cpu_s8(s++)) != '\0')
+	{
+		if (lib_fputc(c, irix_stdout) == EOF) return EOF;
+	}
+	if (lib_fputc('\n', irix_stdout) == EOF) return EOF;
+	return 0;
 }

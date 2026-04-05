@@ -1,7 +1,13 @@
 #include "app.h"
+#include <utime.h>
 
-void lib_utime(CPU *cpu)
+int lib_utime(PTR path, const struct irix_utimbuf *times)
 {
-	(void)cpu;
-	eprint("utime() not implemented\n");
+	struct utimbuf _times;
+	if (times)
+	{
+		_times.actime = times->actime;
+		_times.modtime = times->modtime;
+	}
+	return utime(int_readstr(path), times ? &_times : NULL);
 }
