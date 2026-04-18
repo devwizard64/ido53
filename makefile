@@ -1,6 +1,7 @@
 IRIX_OBJ := \
 	build/src/internal.o \
 	build/src/int_str.o \
+	build/src/int_mem.o \
 	build/src/int_file.o \
 	build/src/int_stat.o \
 	build/src/memcpy.o \
@@ -9,6 +10,7 @@ IRIX_OBJ := \
 	build/src/malloc.o \
 	build/src/memccpy.o \
 	build/src/strchr.o \
+	build/src/free.o \
 	build/src/strcmp.o \
 	build/src/strcpy.o \
 	build/src/memset.o \
@@ -19,11 +21,13 @@ IRIX_OBJ := \
 	build/src/memcmp.o \
 	build/src/strcat.o \
 	build/src/getenv.o \
+	build/src/realloc.o \
 	build/src/read.o \
 	build/src/strncpy.o \
 	build/src/strtok.o \
 	build/src/write.o \
 	build/src/strdup.o \
+	build/src/qsort.o \
 	build/src/getcwd.o \
 	build/src/bcmp.o \
 	build/src/strtol.o \
@@ -51,6 +55,7 @@ IRIX_OBJ := \
 	build/src/chmod.o \
 	build/src/rename.o \
 	build/src/unlink.o \
+	build/src/mmap.o \
 	build/src/pathconf.o \
 	build/src/mktemp.o \
 	build/src/fseek.o \
@@ -63,6 +68,8 @@ IRIX_OBJ := \
 	build/src/setvbuf.o \
 	build/src/fputc.o \
 	build/src/fscanf.o \
+	build/src/munmap.o \
+	build/src/kill.o \
 	build/src/utime.o \
 	build/src/creat.o \
 	build/src/ctime.o \

@@ -5,8 +5,7 @@
 char cpu_mem[MEM_SIZE];
 #endif
 
-static PTR brkptr = MEM_START;
-static PTR brkend = MEM_START;
+static PTR brkptr;
 
 PTR lib_sbrk(int incr)
 {
@@ -17,9 +16,10 @@ PTR lib_sbrk(int incr)
 
 int lib_brk(PTR endds)
 {
+#ifdef MMAP
+	static PTR brkend = MEM_START;
 	unsigned int pagemask = getpagesize()-1;
 	PTR end = ((brkptr = endds)+pagemask) & ~pagemask;
-#ifdef MMAP
 	if (brkend < end)
 	{
 		unsigned int size = end - brkend;
@@ -34,12 +34,12 @@ int lib_brk(PTR endds)
 		unsigned int size = brkend - end;
 		if (munmap(cpu_ptr(end), size))
 		{
-			fatal("munmap(0x%.8X, %u) failed\n", end, size);
+			fatal("munmap(0x%.8X, %u) failed", end, size);
 		}
 		brkend -= size;
 	}
 #else
-	brkend = end;
+	brkptr = endds;
 #endif
 	return 0;
 }

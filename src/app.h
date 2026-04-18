@@ -249,6 +249,7 @@ extern int lib_ungetc(int c, IRIX_FILE *stream);
 extern PTR lib_fcvt(double value, int ndigit, int *decpt, int *sign);
 #define lib__prctl(option) 0
 extern int lib_chmod(PTR path, int mode);
+#define lib_getpagesize() 4096
 extern int lib_rename(PTR old, PTR new);
 extern int lib_unlink(PTR path);
 extern PTR lib_mmap(
@@ -275,6 +276,7 @@ extern int lib_setvbuf(IRIX_FILE *stream, PTR buf, int type, size_t size);
 extern int lib_fputc(int c, IRIX_FILE *stream);
 extern int lib_vfscanf(IRIX_FILE *strm, PTR format, PTR args);
 extern int lib_munmap(PTR addr, size_t len);
+extern int lib_kill(pid_t pid, int sig);
 extern int lib_utime(PTR path, const struct irix_utimbuf *times);
 #define lib_sigset(sig, disp) int_signal(sig, disp, 1)
 extern int lib_creat(PTR path, int mode);
