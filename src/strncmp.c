@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_strncmp(PTR s1, PTR s2, size_t n)
 {

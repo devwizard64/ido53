@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include <limits.h>
 
 long lib_strtol(PTR str, PTR ptr, int base)

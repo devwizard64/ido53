@@ -1,3 +1,6 @@
+#ifndef __CPU_H__
+#define __CPU_H__
+
 #define MEM_START   0x0FA80000
 #define MEM_SIZE    0x20000000
 #define STACK_SIZE  0x10000
@@ -67,3 +70,5 @@ typedef void (*CPUPROC)(CPU *cpu);
 
 #define __break(cpu, code)
 extern CPUPROC __getproc(PTR addr);
+
+#endif /* __CPU_H__ */

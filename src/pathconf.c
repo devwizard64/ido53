@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include <limits.h>
 
 long lib_pathconf(PTR path, int name)

@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_fflush(IRIX_FILE *stream)
 {

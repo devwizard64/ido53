@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 PTR lib_strchr(PTR s, int c)
 {

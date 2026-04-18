@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 long long lib_strtoll(PTR str, PTR ptr, int base)
 {

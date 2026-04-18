@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_setvbuf(IRIX_FILE *stream, PTR buf, int type, size_t size)
 {

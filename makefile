@@ -93,7 +93,7 @@ SRC := $(patsubst %,build/%.c,$(APP))
 
 CC = gcc
 AR = ar
-CPPFLAGS =
+CPPFLAGS = -Iinclude
 CFLAGS = -fno-strict-aliasing -O2 -Wall -Wextra
 LDFLAGS = -Lbuild -s
 
@@ -120,11 +120,9 @@ usr/lib/uld: usr/lib/ld
 	ln -f -s ld $@
 
 $(OBJ):
-$(OBJ): CPPFLAGS += -Isrc
-$(OBJ): CFLAGS += -Wno-unused -Wno-array-bounds
 build/%.o: build/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wno-unused -Wno-array-bounds -c -o $@ $<
 
 $(SRC):
 build/%.c: donor/%

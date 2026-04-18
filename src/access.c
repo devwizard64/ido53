@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_access(PTR path, int amode)
 {

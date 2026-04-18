@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include <fcntl.h>
 
 PTR lib_tempnam(PTR dir, PTR pfx)

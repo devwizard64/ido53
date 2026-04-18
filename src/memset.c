@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 PTR lib_memset(PTR s, int c, size_t n)
 {

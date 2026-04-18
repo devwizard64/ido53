@@ -1,5 +1,5 @@
-#ifndef __APP_H__
-#define __APP_H__
+#ifndef __IRIX_H__
+#define __IRIX_H__
 
 #define _GNU_SOURCE
 #include <stddef.h>
@@ -314,4 +314,4 @@ extern int lib_execvp(PTR file, PTR argv);
 
 extern const unsigned char __ctype[257];
 
-#endif /* __APP_H__ */
+#endif /* __IRIX_H__ */

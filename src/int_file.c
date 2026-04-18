@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include <fcntl.h>
 
 PTR int_fdopen(IRIX_FILE *fp, int fd, const char *pathname, const char *mode)

@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_fputc(int c, IRIX_FILE *stream)
 {

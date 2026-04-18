@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include <time.h>
 
 irix_time_t lib_time(irix_time_t *tloc)

@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include "int_mem.h"
 
 void lib_free(PTR ptr)

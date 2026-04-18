@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_fwrite(PTR ptr, size_t size, size_t nitems, IRIX_FILE *stream)
 {

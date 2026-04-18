@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 PTR lib_freopen(PTR filename, PTR type, IRIX_FILE *stream)
 {

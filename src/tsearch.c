@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 PTR int_tsearch(CPU *cpu, PTR key, PTR rootp, CPUPROC compar, int flag)
 {

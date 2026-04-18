@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_read(int fildes, PTR buf, unsigned nbyte)
 {

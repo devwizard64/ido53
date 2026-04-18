@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 double lib_atof(PTR nptr)
 {

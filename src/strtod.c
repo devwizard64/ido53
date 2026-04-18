@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 double lib_strtod(PTR nptr, PTR endptr)
 {

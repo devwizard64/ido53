@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_bcmp(PTR b1, PTR b2, int length)
 {

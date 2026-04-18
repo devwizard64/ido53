@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include <fcntl.h>
 
 int lib_creat(PTR path, int mode)

@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include <limits.h>
 
 unsigned long lib_strtoul(PTR str, PTR ptr, int base)

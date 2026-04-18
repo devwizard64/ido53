@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include <limits.h>
 
 int lib_vsprintf(PTR s, PTR format, PTR arg)

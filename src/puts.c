@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_puts(PTR s)
 {

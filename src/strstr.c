@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 PTR lib_strstr(PTR s1, PTR s2)
 {

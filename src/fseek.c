@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_fseek(IRIX_FILE *stream, long offset, int whence)
 {

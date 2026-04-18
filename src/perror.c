@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 void lib_perror(PTR s)
 {

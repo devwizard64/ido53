@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib___filbuf(IRIX_FILE *stream)
 {

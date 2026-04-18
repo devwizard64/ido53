@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include "int_fmt.h"
 
 int int_getfmt(char *fmt, PTR *format)

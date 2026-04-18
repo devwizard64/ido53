@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 static CPU *qsort_cpu;
 static CPUPROC qsort_compar;

@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #ifdef MMAP
 #include <sys/mman.h>
 #else

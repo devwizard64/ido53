@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 #ifdef _WIN32
 

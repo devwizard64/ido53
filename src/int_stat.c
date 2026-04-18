@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 void int_writestat(struct irix_stat *dst, struct stat *src)
 {

@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 #ifndef EB
 void *int_memrd(void *dst, PTR src, size_t size)

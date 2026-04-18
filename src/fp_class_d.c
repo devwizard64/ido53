@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 #define IRIX_FP_SNAN        0
 #define IRIX_FP_QNAN        1

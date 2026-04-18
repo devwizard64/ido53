@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_fstat(int fildes, struct irix_stat *buf)
 {

@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 size_t lib_strlen(PTR s)
 {

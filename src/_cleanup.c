@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 void lib__cleanup(void)
 {

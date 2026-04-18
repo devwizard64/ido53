@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include <time.h>
 
 PTR lib_ctime(const irix_time_t *clock)

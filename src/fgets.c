@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 PTR lib_fgets(PTR s, int n, IRIX_FILE *stream)
 {

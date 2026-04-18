@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 #include "int_mem.h"
 
 PTR lib_malloc(size_t size)

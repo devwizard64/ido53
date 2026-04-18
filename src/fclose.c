@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_fclose(IRIX_FILE *stream)
 {

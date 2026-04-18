@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 void lib___assert(PTR assertion, PTR file, unsigned int line)
 {

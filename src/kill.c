@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_kill(pid_t pid, int sig)
 {

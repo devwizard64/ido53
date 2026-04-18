@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 static char *execpath;
 

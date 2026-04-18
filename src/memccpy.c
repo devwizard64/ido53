@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 PTR lib_memccpy(PTR s1, PTR s2, int c, size_t n)
 {

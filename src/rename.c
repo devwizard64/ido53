@@ -1,4 +1,4 @@
-#include "app.h"
+#include "irix.h"
 
 int lib_rename(PTR old, PTR new)
 {
