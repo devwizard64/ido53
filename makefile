@@ -1,4 +1,4 @@
-LIB_OBJ := \
+IRIX_OBJ := \
 	build/src/internal.o \
 	build/src/int_str.o \
 	build/src/int_file.o \
@@ -79,33 +79,38 @@ LIB_OBJ := \
 	build/src/execvp.o \
 	build/src/ctype.o
 
-ELF := ugen ujoin uld umerge uopt usplit cc cfe as0 as1
-BIN := $(addprefix bin/,$(ELF))
-OBJ := $(addprefix build/,$(addsuffix .o,$(ELF)))
-SRC := $(addprefix build/,$(addsuffix .c,$(ELF)))
+APP := ugen ujoin uld umerge uopt usplit cc cfe as0 as1
+EXT := err.english.cc
+BIN := $(addprefix bin/,$(APP) ld)
+LIB := $(addprefix bin/,$(EXT))
+OBJ := $(addprefix build/,$(addsuffix .o,$(APP)))
+SRC := $(addprefix build/,$(addsuffix .c,$(APP)))
 
 CC = gcc
 AR = ar
-#CPPFLAGS = -DMMAP
-#CFLAGS = -fno-pie -fno-strict-aliasing -O2 -Wall -Wextra
-#LDFLAGS = -no-pie -s
 CPPFLAGS =
 CFLAGS = -fno-strict-aliasing -O2 -Wall -Wextra
-LDFLAGS = -s
-
+LDFLAGS = -Lbuild -s
 RECOMPILEFLAGS :=
 
 .PHONY: default
-default: $(BIN) bin/ld bin/err.english.cc
+default: $(BIN) $(LIB)
 
 .PHONY: clean
 clean:
 	rm -f -r bin build
 
-$(BIN):
-bin/%: build/%.o build/lib.a
+$(LIB): bin/%: donor/%
 	@mkdir -p $(dir $@)
-	$(CC) $(LDFLAGS) -o $@ $^ -lm
+	cp -f $< $@
+
+bin/ld: bin/uld
+	ln -f -s uld $@
+
+$(BIN):
+bin/%: build/%.o build/libirix.a
+	@mkdir -p $(dir $@)
+	$(CC) $(LDFLAGS) -o $@ $< -lirix -lm
 
 $(OBJ):
 $(OBJ): CPPFLAGS += -Isrc
@@ -124,20 +129,13 @@ build/%.c: donor/%
 	@mkdir -p $(dir $@)
 	tools/recompile $(RECOMPILEFLAGS) $^ > $@
 
-build/lib.a: $(LIB_OBJ)
-	$(AR) rc $@ $(LIB_OBJ)
+build/libirix.a: $(IRIX_OBJ)
+	$(AR) rc $@ $(IRIX_OBJ)
 
-$(LIB_OBJ): src/app.h
-$(LIB_OBJ): CFLAGS += -Wpedantic
+$(IRIX_OBJ): CFLAGS += -Wpedantic
 build/src/signal.o: CFLAGS += -Wno-deprecated-declarations
 build/src/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -c -o $@ $<
 
-bin/%: donor/%
-	@mkdir -p $(dir $@)
-	cp -f $< $@
-
-bin/ld:
-	@mkdir -p $(dir $@)
-	ln -f -s uld $@
+-include $(IRIX_OBJ:.o=.d)
