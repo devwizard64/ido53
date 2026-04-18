@@ -104,7 +104,6 @@ default: $(BIN)
 clean:
 	rm -f -r build $(BIN)
 
-$(BIN):
 usr/lib/%: build/%.o build/libirix.a
 	@mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) -o $@ $< -lirix -lm
@@ -127,6 +126,7 @@ build/%.o: build/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
+$(SRC):
 build/%.c: donor/%
 	@mkdir -p $(dir $@)
 	tools/recompile $< usr/lib > $@
