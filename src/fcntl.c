@@ -1,4 +1,24 @@
 #include "app.h"
+
+#ifdef _WIN32
+
+int lib_fcntl(int fildes, int cmd, PTR arg)
+{
+	(void)fildes;
+	(void)arg;
+	switch (cmd)
+	{
+	case 7:
+		return 0;
+	default:
+		fatal("fcntl(%d) not implemented", cmd);
+		break;
+	}
+	return -1;
+}
+
+#else
+
 #include <fcntl.h>
 
 struct irix_flock
@@ -48,3 +68,5 @@ int lib_fcntl(int fildes, int cmd, PTR arg)
 	}
 	return -1;
 }
+
+#endif

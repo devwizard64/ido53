@@ -1,6 +1,18 @@
 #include "app.h"
 #include "int_mem.h"
 
+#ifdef _WIN32
+static ssize_t pread(int fd, void *buf, size_t count, off_t offset)
+{
+	ssize_t result;
+	off_t off = lseek(fd, 0, SEEK_CUR);
+	lseek(fd, offset, SEEK_SET);
+	result = read(fd, buf, count);
+	lseek(fd, off, SEEK_SET);
+	return result;
+}
+#endif
+
 PTR lib_mmap(PTR addr, size_t len, int prot, int flags, int fd, off_t off)
 {
 	int n;

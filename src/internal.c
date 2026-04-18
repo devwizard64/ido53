@@ -8,6 +8,9 @@ void init(char *path)
 	__iob[0]._file = 0; __iob[0]._flag = IOFBF|IOREAD;
 	__iob[1]._file = 1; __iob[1]._flag = IOLBF|IOWRT;
 	__iob[2]._file = 2; __iob[2]._flag = IOLBF|IOWRT;
+#ifdef _WIN32
+	_set_fmode(_O_BINARY);
+#endif
 	atexit(lib__cleanup);
 }
 

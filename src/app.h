@@ -14,7 +14,19 @@
 #include <signal.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <setjmp.h>
+#include <windows.h>
+extern jmp_buf fork_buf;
+extern HANDLE hChild;
+extern int spawn_mode;
+extern pid_t wait(int *statptr);
+#define fork() (spawn_mode = _P_NOWAIT, setjmp(fork_buf))
+#define flock(fd, operation) 0
+#define pipe(fildes) _pipe(fildes, 0, 0)
+#else
 #include <sys/wait.h>
+#endif
 #include <math.h>
 
 #ifdef __GNUC__

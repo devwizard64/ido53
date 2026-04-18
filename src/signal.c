@@ -43,8 +43,13 @@ int int_signal(int sig, PTR func, int flag)
 	case  1: disp = SIG_IGN; sigtab[sig-1] = NULLPTR; break;
 	default: disp = int_sig; sigtab[sig-1] = func; break;
 	}
+#ifdef _WIN32
+	(void)flag;
+	disp = signal(signum, disp);
+#else
 	if (flag)   disp = sigset(signum, disp);
 	else        disp = signal(signum, disp);
+#endif
 	if (disp == SIG_ERR) return -1;
 	if (disp == SIG_DFL) return 0;
 	if (disp == SIG_IGN) return 1;
