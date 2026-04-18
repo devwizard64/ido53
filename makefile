@@ -87,16 +87,15 @@ IRIX_OBJ := \
 	build/src/ctype.o
 
 APP := driver ld ugen ujoin umerge uopt usplit cfe as0 as1
-BIN := $(addprefix usr/lib/,$(APP)) usr/bin/cc usr/bin/as usr/bin/ld usr/lib/uld
-OBJ := $(addprefix build/,$(addsuffix .o,$(APP)))
-SRC := $(addprefix build/,$(addsuffix .c,$(APP)))
+BIN := $(patsubst %,usr/lib/%,$(APP)) usr/bin/cc usr/bin/as usr/bin/ld usr/lib/uld
+OBJ := $(patsubst %,build/%.o,$(APP))
+SRC := $(patsubst %,build/%.c,$(APP))
 
 CC = gcc
 AR = ar
 CPPFLAGS =
 CFLAGS = -fno-strict-aliasing -O2 -Wall -Wextra
 LDFLAGS = -Lbuild -s
-RECOMPILEFLAGS :=
 
 .PHONY: default
 default: $(BIN)
@@ -128,15 +127,9 @@ build/%.o: build/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-$(SRC): usr/lib/libc.so.1
-build/ld.c: usr/lib/libgen.so
-build/umerge.c: usr/lib/libm.so
-build/cfe.c: usr/lib/libmalloc.so
-build/as0.c build/as1.c: usr/lib/libexc.so
-build/ugen.c: RECOMPILEFLAGS += -s
 build/%.c: donor/%
 	@mkdir -p $(dir $@)
-	tools/recompile $(RECOMPILEFLAGS) $^ > $@
+	tools/recompile $< usr/lib > $@
 
 build/libirix.a: $(IRIX_OBJ)
 	$(AR) rc $@ $(IRIX_OBJ)

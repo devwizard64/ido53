@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 import struct
 
 # print() to stderr
@@ -26,6 +27,7 @@ SHT_PROGBITS            = 1
 SHT_SYMTAB              = 2
 SHT_STRTAB              = 3
 SHT_DYNSYM              = 11
+SHT_MIPS_LIBLIST        = 0x70000000
 
 STB_LOCAL               = 0
 STB_GLOBAL              = 1
@@ -36,10 +38,10 @@ def ST_TYPE(info): return info&0xf
 def ST_INFO(bind, type_): return (bind<<4) + (type_&0xf)
 
 # dereference name (must be done after all SH load)
-def Elf_Name(self, sh):
+def Elf_Name(self, symtab):
 	i = self.name
-	n = sh.data.find(B"\0", i)
-	self.name = sh.data[i:n].decode()
+	n = symtab.find(B"\0", i)
+	self.name = symtab[i:n].decode()
 
 class Elf32_Ehdr:
 	def __init__(self, data):
@@ -65,6 +67,9 @@ class Elf32_Shdr:
 		if self.type == SHT_SYMTAB or self.type == SHT_DYNSYM:
 			self.num = self.size//16
 			self.data = [Elf32_Sym(f.read(16)) for i in range(self.num)]
+		elif self.type == SHT_MIPS_LIBLIST:
+			self.num = self.size//20
+			self.data = [Elf32_Lib(f.read(20)) for i in range(self.num)]
 		else:
 			self.data = f.read(self.size)
 	def get(self, addr, fmt):
@@ -76,6 +81,11 @@ class Elf32_Sym:
 		self.name, self.value, self.size, self.info, self.other, self.shndx = \
 			struct.unpack(">IIIBBH", data)
 
+class Elf32_Lib:
+	def __init__(self, data):
+		self.name, self.time_stamp, self.checksum, self.version, self.flags = \
+			struct.unpack(">IIIII", data)
+
 class Elf32:
 	def __init__(self, path):
 		with open(path, "rb") as f:
@@ -85,10 +95,14 @@ class Elf32:
 			f.seek(self.eh.shoff)
 			self.sh = [Elf32_Shdr(f.read(40)) for i in range(self.eh.shnum)]
 			for sh in self.sh: sh.load(f)
-			for sh in self.sh: Elf_Name(sh, self.sh[self.eh.shstrndx])
+			symtab = self.sh[self.eh.shstrndx].data
+			for sh in self.sh: Elf_Name(sh, symtab)
 			self.section = {sh.name: sh for sh in self.sh}
-			for sym in self.section[".dynsym"].data:
-				Elf_Name(sym, self.section[".dynstr"])
+			for name in (".dynsym", ".liblist"):
+				if name in self.section:
+					sh = self.section[name]
+					symtab = self.sh[sh.link].data
+					for entry in sh.data: Elf_Name(entry, symtab)
 			sh = self.section[".text"]
 			self.ftext = sh.addr
 			self.etext = sh.addr + sh.size
@@ -1172,9 +1186,9 @@ class Inst:
 			self.output_block(block)
 	def output(self):
 		self.output_inst([self.addr])
-		# print("\t/* %.X:%s */" % (self.addr, self)) # DEBUG
+		# print("\t/* %X:%s */" % (self.addr, self)) # DEBUG
 		if hasattr(self, "slot"):
-			# print("\t/* %.X:%s */" % (self.slot.addr, self.slot)) # DEBUG
+			# print("\t/* %X:%s */" % (self.slot.addr, self.slot)) # DEBUG
 			if self.slot.getwr() & self.getrd() or (
 				self.slot.addr in self.proc.btbl
 			):
@@ -1497,6 +1511,9 @@ def loadext(elf):
 	for sym in elf.section[".dynsym"].data[1:]:
 		name = sym.name
 		addr = sym.value
+		# library symbol
+		if sym.shndx == 0x0000 or sym.shndx == 0xFFF2: # UND / COM
+			continue
 		if name in undtab: # collect undefined symbol address
 			if name not in symtab: symtab[name] = addr
 			# prefer function not prefixed with _
@@ -1562,26 +1579,22 @@ def memmove():
 ################################################################################
 
 def main(argv):
-	if len(argv) < 2:
-		sys.stderr.write("usage: %s [-s] <elf> [ext ...]" % argv[0])
+	if len(argv) != 3:
+		sys.stderr.write("usage: %s <elf> <lib>" % argv[0])
 		return 1
 
-	elf = None
-	for arg in argv[1:]:
-		if arg.startswith("-"):
-			if arg == "-s":
-				# global s2 (ugen hack)
-				glbreg.add("s2")
-				savereg.discard("s2")
-			else:
-				raise RuntimeError("unknown option %s" % arg)
-		elif not elf:
-			# load executable
-			elf = Elf32(arg)
-			loadsym(elf)
-		else:
-			# load shared library symbols
-			loadext(Elf32(arg))
+	# global s2 (ugen hack)
+	if os.path.basename(argv[1]) == "ugen":
+		glbreg.add("s2")
+		savereg.discard("s2")
+
+	# load executable
+	elf = Elf32(argv[1])
+	loadsym(elf)
+
+	# load shared library symbols
+	for lib in elf.section[".liblist"].data:
+		loadext(Elf32(os.path.join(argv[2], lib.name)))
 
 	gpr[28] = symtab["_gp_disp"]
 
