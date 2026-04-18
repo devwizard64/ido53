@@ -1,6 +1,6 @@
 #include "app.h"
 
-char *execpath;
+static char *execpath;
 
 void init(char *path)
 {

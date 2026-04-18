@@ -86,10 +86,8 @@ IRIX_OBJ := \
 	build/src/execvp.o \
 	build/src/ctype.o
 
-APP := ugen ujoin uld umerge uopt usplit cc cfe as0 as1
-EXT := err.english.cc
-BIN := $(addprefix bin/,$(APP) ld)
-LIB := $(addprefix bin/,$(EXT))
+APP := driver ld ugen ujoin umerge uopt usplit cfe as0 as1
+BIN := $(addprefix usr/lib/,$(APP)) usr/bin/cc usr/bin/as usr/bin/ld usr/lib/uld
 OBJ := $(addprefix build/,$(addsuffix .o,$(APP)))
 SRC := $(addprefix build/,$(addsuffix .c,$(APP)))
 
@@ -101,23 +99,27 @@ LDFLAGS = -Lbuild -s
 RECOMPILEFLAGS :=
 
 .PHONY: default
-default: $(BIN) $(LIB)
+default: $(BIN)
 
 .PHONY: clean
 clean:
-	rm -f -r bin build
-
-$(LIB): bin/%: donor/%
-	@mkdir -p $(dir $@)
-	cp -f $< $@
-
-bin/ld: bin/uld
-	ln -f -s uld $@
+	rm -f -r build $(BIN)
 
 $(BIN):
-bin/%: build/%.o build/libirix.a
+usr/lib/%: build/%.o build/libirix.a
 	@mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) -o $@ $< -lirix -lm
+
+usr/bin/cc usr/bin/as: usr/lib/driver
+	@mkdir -p $(dir $@)
+	ln -f -s ../lib/driver $@
+
+usr/bin/ld: usr/lib/ld
+	@mkdir -p $(dir $@)
+	ln -f -s ../lib/ld $@
+
+usr/lib/uld: usr/lib/ld
+	ln -f -s ld $@
 
 $(OBJ):
 $(OBJ): CPPFLAGS += -Isrc
@@ -126,11 +128,11 @@ build/%.o: build/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-$(SRC): donor/libc.so.1
-build/uld.c: donor/libgen.so
-build/umerge.c: donor/libm.so
-build/cfe.c: donor/libmalloc.so
-build/as0.c build/as1.c: donor/libexc.so
+$(SRC): usr/lib/libc.so.1
+build/ld.c: usr/lib/libgen.so
+build/umerge.c: usr/lib/libm.so
+build/cfe.c: usr/lib/libmalloc.so
+build/as0.c build/as1.c: usr/lib/libexc.so
 build/ugen.c: RECOMPILEFLAGS += -s
 build/%.c: donor/%
 	@mkdir -p $(dir $@)

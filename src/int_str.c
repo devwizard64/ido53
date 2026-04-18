@@ -30,41 +30,9 @@ PTR int_strwr(PTR dst, const char *src)
 	for (i = 0; (*cpu_s8(dst+i) = src[i]) != '\0'; i++);
 	return dst;
 }
-#endif
-
-PTR int_writetmp(const char *str)
-{
-	PTR ptr = lib_malloc(strlen(str)+1);
-	int_writestr(ptr, str);
-	return ptr;
-}
-
-char *int_cvtpath(const char *pathname)
-{
-	if (!strncmp(pathname, "/usr/lib/", 9))
-	{
-		char *path, *s;
-		size_t n = (s = strrchr(execpath, '/')) ? s+1-execpath : 0;
-		memcpy(path = malloc(n+strlen(pathname += 9)+1), execpath, n);
-		strcpy(path+n, pathname);
-		return path;
-	}
-	return NULL;
-}
 
 char **int_readarg(PTR ptr)
 {
-#ifdef EB
-	int i, argc;
-	char **argv;
-	size_t size = sizeof(char *);
-	PTR *arg = cpu_ptr(ptr);
-	for (argc = 0; arg[argc]; argc++) size += sizeof(char *);
-	argv = malloc(size);
-	for (i = 0; i < argc; i++) argv[i] = cpu_ptr(arg[i]);
-	argv[argc] = NULL;
-	return argv;
-#else
 	int i, argc;
 	char **argv, *str;
 	size_t n, size = sizeof(char *);
@@ -82,8 +50,21 @@ char **int_readarg(PTR ptr)
 	}
 	argv[argc] = NULL;
 	return argv;
-#endif
 }
+#else
+char **int_readarg(PTR ptr)
+{
+	int i, argc;
+	char **argv;
+	size_t size = sizeof(char *);
+	PTR *arg = cpu_ptr(ptr);
+	for (argc = 0; arg[argc]; argc++) size += sizeof(char *);
+	argv = malloc(size);
+	for (i = 0; i < argc; i++) argv[i] = cpu_ptr(arg[i]);
+	argv[argc] = NULL;
+	return argv;
+}
+#endif
 
 PTR int_writearg(char **argv)
 {
@@ -102,5 +83,12 @@ PTR int_writearg(char **argv)
 		str += n;
 	}
 	arg[argc] = NULLPTR;
+	return ptr;
+}
+
+PTR int_writetmp(const char *str)
+{
+	PTR ptr = lib_malloc(strlen(str)+1);
+	int_writestr(ptr, str);
 	return ptr;
 }

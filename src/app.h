@@ -25,7 +25,6 @@
 #define __attribute__(x)
 #endif
 
-extern char *execpath;
 extern void init(char *path);
 extern __attribute__((noreturn)) void fatal(const char *fmt, ...);
 #define notimpl(name) fatal("%s() not implemented", name)
@@ -53,11 +52,9 @@ extern PTR int_strwr(PTR dst, const char *src);
 #define int_writestr(dst, src) int_strwr(dst, src)
 #define int_flushstr(dst, src) int_strwr(dst, src)
 #endif
-
-extern PTR int_writetmp(const char *str);
-extern char *int_cvtpath(const char *pathname);
 extern char **int_readarg(PTR ptr);
 extern PTR int_writearg(char **argv);
+extern PTR int_writetmp(const char *str);
 
 #define IRIX_BUFSIZ 4096
 #define NFILE       100
