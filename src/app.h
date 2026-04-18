@@ -21,29 +21,136 @@
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define EB
 #endif
-#endif
-
-#define NULLPTR 0
-typedef uint32_t PTR;
-
-#ifdef DEBUG
-#define warn(...) fprintf(stderr, "warning: " __VA_ARGS__)
 #else
-#define warn(...) do {} while (0)
+#define __attribute__(x)
 #endif
 
-#define fatal(...) do { \
-	fprintf(stderr, "error: " __VA_ARGS__); \
-	abort(); \
-} while (0)
-
-#define notimpl(name) fatal("error: %s() not implemented\n", name)
+extern char *execpath;
+extern void init(char *path);
+extern __attribute__((noreturn)) void fatal(const char *fmt, ...);
+#define notimpl(name) fatal("%s() not implemented", name)
 
 #include "cpu.h"
-#include "int_str.h"
-#include "int_file.h"
-#include "int_stat.h"
-#include "int_fmt.h"
+
+#ifdef EB
+#define int_readmem(ptr, size) cpu_ptr(ptr)
+#define int_alcmem(ptr, size) cpu_ptr(ptr)
+#define int_writemem(dst, src, size) memcpy(cpu_ptr(dst), src, size)
+#define int_flushmem(dst, src, size)
+#define int_readstr(str) ((char *)cpu_ptr(str))
+#define int_writestr(dst, src) strcpy(cpu_ptr(dst), src)
+#define int_flushstr(dst, src)
+#else /* EL */
+extern void *int_memrd(void *dst, PTR src, size_t size);
+extern PTR int_memwr(PTR dst, const void *src, size_t size);
+extern char *int_strrd(char *dst, PTR src);
+extern PTR int_strwr(PTR dst, const char *src);
+#define int_readmem(ptr, size) int_memrd(alloca(size), ptr, size)
+#define int_alcmem(ptr, size) alloca(size)
+#define int_writemem(dst, src, size) int_memwr(dst, src, size)
+#define int_flushmem(dst, src, size) int_memwr(dst, src, size)
+#define int_readstr(str) int_strrd(alloca(lib_strlen(str)+1), str)
+#define int_writestr(dst, src) int_strwr(dst, src)
+#define int_flushstr(dst, src) int_strwr(dst, src)
+#endif
+
+extern PTR int_writetmp(const char *str);
+extern char *int_cvtpath(const char *pathname);
+extern char **int_readarg(PTR ptr);
+extern PTR int_writearg(char **argv);
+
+#define IRIX_BUFSIZ 4096
+#define NFILE       100
+#define SBFSIZ      8
+
+#define IOFBF       0000
+#define IOLBF       0100
+#define IONBF       0004
+#define IOEOF       0020
+#define IOERR       0040
+#define IOREAD      0001
+#define IOWRT       0002
+#define IORW        0200
+#define IOMYBUF     0010
+
+typedef struct
+{
+	int32_t _cnt;
+	PTR _ptr;
+	PTR _base;
+#ifdef EB
+	uint8_t _flag;
+	uint8_t _file;
+#else
+	char pad[2];
+	uint8_t _file;
+	uint8_t _flag;
+#endif
+}
+IRIX_FILE;
+
+extern PTR *const _bufendtab;
+extern IRIX_FILE *const __iob;
+
+#define irix_stdin (&__iob[0])
+#define irix_stdout (&__iob[1])
+#define irix_stderr (&__iob[2])
+
+#define int_getc(p) \
+	(--(p)->_cnt < 0 ? lib___filbuf(p) : (int)*cpu_u8((p)->_ptr++))
+#define int_putc(x, p) \
+	(--(p)->_cnt < 0 ? lib___flsbuf((x), (p)) : \
+		(int)(*cpu_u8((p)->_ptr++) = (x)))
+
+typedef int32_t irix_clock_t;
+typedef int32_t irix_time_t;
+
+struct irix_timestruc_t
+{
+	irix_time_t tv_sec;
+	int32_t tv_nsec;
+};
+
+struct irix_tms
+{
+	irix_clock_t tms_utime;
+	irix_clock_t tms_stime;
+	irix_clock_t tms_cutime;
+	irix_clock_t tms_cstime;
+};
+
+struct irix_utimbuf
+{
+	irix_time_t actime;
+	irix_time_t modtime;
+};
+
+struct irix_stat
+{
+	int32_t st_dev;
+	int32_t st_pad1[3];
+	int32_t st_ino;
+	int32_t st_mode;
+	int32_t st_nlink;
+	int32_t st_uid;
+	int32_t st_gid;
+	int32_t st_rdev;
+	int32_t st_pad2[2];
+	int32_t st_size;
+	int32_t st_pad3;
+	struct irix_timestruc_t st_atim;
+	struct irix_timestruc_t st_mtim;
+	struct irix_timestruc_t st_ctim;
+	int32_t st_blksize;
+	int32_t st_blocks;
+	char st_fstype[16];
+	int32_t st_pad4[8];
+};
+
+extern PTR int_fdopen(
+	IRIX_FILE *fp, int fd, const char *pathname, const char *mode
+);
+extern void int_writestat(struct irix_stat *dst, struct stat *src);
 
 extern PTR lib_regcmp(PTR);
 extern PTR lib_regex(PTR re, PTR subject, PTR);
@@ -106,7 +213,9 @@ extern int lib_write(int fildes, PTR buf, unsigned nbyte);
 extern PTR lib_strncat(PTR s1, PTR s2, size_t n);
 #endif
 extern PTR lib_strdup(PTR s1);
-extern void lib_qsort(void *base, size_t nel, size_t width, CPUPROC compar);
+extern void lib_qsort(
+	CPU *cpu, void *base, size_t nel, size_t width, CPUPROC compar
+);
 extern PTR lib_getcwd(PTR buf, int size);
 extern int lib_bcmp(PTR b1, PTR b2, int length);
 extern long lib_strtol(PTR str, PTR ptr, int base);
@@ -127,16 +236,7 @@ extern int lib_brk(PTR endds);
 extern long lib_ftell(IRIX_FILE *stream);
 extern int int_signal(int sig, PTR func, int flag);
 #define lib_signal(sig, func) int_signal(sig, func, 0)
-
-struct irix_tms
-{
-	uint32_t tms_utime;
-	uint32_t tms_stime;
-	uint32_t tms_cutime;
-	uint32_t tms_cstime;
-};
-
-extern uint32_t lib_times(struct irix_tms *buffer);
+extern irix_clock_t lib_times(struct irix_tms *buffer);
 extern double lib_atof(PTR nptr);
 extern int lib_fcntl(int fildes, int cmd, PTR arg);
 extern double lib__atod(PTR buffer, int ndigit, int dexp);
@@ -144,7 +244,7 @@ extern int lib_fread(PTR ptr, size_t size, size_t nitems, IRIX_FILE *stream);
 extern PTR lib_strstr(PTR s1, PTR s2);
 extern int lib_gethostname(PTR name, int namelen);
 extern int lib___flsbuf(int c, IRIX_FILE *stream);
-extern uint32_t lib_time(uint32_t *tloc);
+extern irix_time_t lib_time(irix_time_t *tloc);
 extern int lib_ungetc(int c, IRIX_FILE *stream);
 extern PTR lib_fcvt(double value, int ndigit, int *decpt, int *sign);
 #define lib__prctl(option) 0
@@ -175,17 +275,10 @@ extern int lib_setvbuf(IRIX_FILE *stream, PTR buf, int type, size_t size);
 extern int lib_fputc(int c, IRIX_FILE *stream);
 extern int lib_vfscanf(IRIX_FILE *strm, PTR format, PTR args);
 extern int lib_munmap(PTR addr, size_t len);
-
-struct irix_utimbuf
-{
-	uint32_t actime;
-	uint32_t modtime;
-};
-
 extern int lib_utime(PTR path, const struct irix_utimbuf *times);
 #define lib_sigset(sig, disp) int_signal(sig, disp, 1)
 extern int lib_creat(PTR path, int mode);
-extern PTR lib_ctime(const uint32_t *clock);
+extern PTR lib_ctime(const irix_time_t *clock);
 extern PTR lib_tmpnam(PTR s);
 extern void lib__cleanup(void);
 extern PTR lib_tempnam(PTR dir, PTR pfx);

@@ -44,6 +44,9 @@ extern char cpu_mem[MEM_SIZE];
 #define IX  0
 #endif
 
+#define NULLPTR 0
+typedef uint32_t PTR;
+
 typedef union
 {
 	int32_t i[2];

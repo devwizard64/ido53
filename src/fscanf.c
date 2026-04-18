@@ -1,4 +1,5 @@
 #include "app.h"
+#include "int_fmt.h"
 
 int lib_vfscanf(IRIX_FILE *stream, PTR format, PTR arg)
 {

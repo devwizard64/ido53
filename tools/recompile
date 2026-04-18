@@ -753,7 +753,7 @@ class Inst:
 		"tolower": "ii::",
 		# "strncat": "pppu",
 		"strdup": "pp:e",
-		# "qsort": "vPuuQ",
+		# "qsort": "v&PuuQ",
 		"getcwd": "ppi:e",
 		"bcmp": "ippi",
 		"strtol": "ippi:e",
@@ -774,7 +774,7 @@ class Inst:
 		# "ftell": "iP",
 		"close": "ii:e:",
 		"signal": "pip:ep",
-		"times": "uP:e",
+		"times": "iP:e",
 		"atof": "dp",
 		"fcntl": "iii*:e",
 		"lseek": "iiii:e:",
@@ -788,7 +788,7 @@ class Inst:
 		"_exithandle": None,
 		"gethostname": "ipi:e",
 		"__flsbuf": "iiP",
-		"time": "uN:e",
+		"time": "iN:e",
 		"ungetc": "iiP",
 		# "fcvt": "pdiPP",
 		"_prctl": "ii",
@@ -893,7 +893,7 @@ class Inst:
 				elif a == "N":
 					arg.append("%s ? cpu_ptr(%s) : NULL" % (v, v))
 				elif a == "Q":
-					if v in self.proc.val:
+					if v in self.proc.val and self.proc.val[v] in addrtab:
 						arg.append(addrtab[self.proc.val[v]])
 					else:
 						arg.append(makeop("__getproc", "(", v))
@@ -1600,14 +1600,12 @@ def main(argv):
 	# program output
 	print("#include \"app.h\"\n")
 	print("PTR *const _bufendtab = cpu_ptr(0x%X);" % symtab["_bufendtab"])
-	print("IRIX_FILE *const __iob = cpu_ptr(0x%X);" % symtab["__iob"])
-	print("")
+	print("IRIX_FILE *const __iob = cpu_ptr(0x%X);\n" % symtab["__iob"])
 	for proc in asm.proc:
 		print("static void %s(CPU *cpu);" % addrtab[proc.addr])
-	print("")
 	if proc_flag: # generate __getproc
 		print(
-			"typedef struct\n{\n"
+			"\ntypedef struct\n{\n"
 			"\tPTR addr;\n"
 			"\tCPUPROC proc;\n"
 			"}\nProcEntry;\n\n"
@@ -1616,8 +1614,7 @@ def main(argv):
 		for proc in asm.proc:
 			print("\t{0x%X, %s}," % (proc.addr, addrtab[proc.addr]))
 		print((
-			"\t{-1, NULL},\n"
-			"};\n\n"
+			"\t{-1, NULL},\n};\n\n"
 			"CPUPROC __getproc(PTR addr)\n"
 			"{\n"
 			"\tconst ProcEntry *entry = proctab;\n"
@@ -1630,41 +1627,23 @@ def main(argv):
 			"\t}\n"
 			"\twhile (addr != entry->addr && addr != entry->addr+12);\n"
 			"\treturn entry->proc;\n"
-			"}\n"
+			"}"
 		) % len(asm.proc))
-	print((
-		"static const uint32_t data[] =\n"
-		"{"
-	))
-	for addr in range(elf.fdata, elf.edata, 16):
-		print("\t" + "".join([
-			"0x%.8X," % elf.lwu(addr) for addr in range(addr, addr+16, 4)
-		]))
-	print(
-		"};\n\n"
-		"int main(int argc, char *argv[])\n"
-		"{\n"
-		"\tCPU cpu;\n"
-		"\tmemset(&cpu, 0, sizeof(CPU));\n"
-		"\texecpath = argv[0];"
-	)
+	print("\nstatic const uint32_t data[] =\n{")
+	for addr in range(elf.fdata, elf.edata, 16): print("\t" + "".join([
+		"0x%.8X," % elf.lwu(addr) for addr in range(addr, addr+16, 4)
+	]))
+	print("};\n\nint main(int argc, char *argv[])\n{")
+	print("\tCPU cpu = {0};")
 	print("\tlib_brk(0x%X);" % symtab["_end"])
 	print("\tint_writemem(0x%X, __ctype, 257);" % symtab["__ctype"])
-	print(
-		"\t__iob[0]._file = 0; __iob[0]._flag = IOFBF|IOREAD;\n"
-		"\t__iob[1]._file = 1; __iob[1]._flag = IOLBF|IOWRT;\n"
-		"\t__iob[2]._file = 2; __iob[2]._flag = IOLBF|IOWRT;\n"
-		"\tatexit(lib__cleanup);"
-	)
 	print("\tmemcpy(cpu_ptr(0x%X), data, sizeof(data));" % elf.fdata)
+	print("\tinit(argv[0]);")
 	print("\tcpu.sp = 0x%X;" % (elf.fdata-16))
 	print("\tcpu.a0 = *cpu_s32(0x%X) = argc;" % symtab["__Argc"])
 	print("\tcpu.a1 = *cpu_s32(0x%X) = int_writearg(argv);" % symtab["__Argv"])
-	print(
-		"\tapp_main(&cpu);\n"
-		"\treturn cpu.v0;\n"
-		"}"
-	)
+	print("\tapp_main(&cpu);")
+	print("\treturn cpu.v0;\n}")
 	for proc in asm.proc: proc.output()
 	return 0
 

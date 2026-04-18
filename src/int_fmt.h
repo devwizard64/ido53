@@ -1,3 +1,6 @@
+#ifndef __INT_FMT_H__
+#define __INT_FMT_H__
+
 #define FMT_NULL    0
 #define FMT_PERCENT 1
 #define FMT_SINT    2
@@ -8,3 +11,5 @@
 #define FMT_NO      7
 
 extern int int_getfmt(char *fmt, PTR *format);
+
+#endif /* __INT_FMT_H__ */

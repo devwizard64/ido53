@@ -1,7 +1,7 @@
 #include "app.h"
 #include <sys/times.h>
 
-uint32_t lib_times(struct irix_tms *buffer)
+irix_clock_t lib_times(struct irix_tms *buffer)
 {
 	struct tms buf;
 	clock_t result = times(&buf);

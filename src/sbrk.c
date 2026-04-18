@@ -26,7 +26,7 @@ int lib_brk(PTR endds)
 		if (mmap(
 			cpu_ptr(brkend), size,
 			PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0
-		) == MAP_FAILED) fatal("mmap(0x%.8X, %u) failed\n", brkend, size);
+		) == MAP_FAILED) fatal("mmap(0x%.8X, %u) failed", brkend, size);
 		brkend += size;
 	}
 	else if (brkend > end)

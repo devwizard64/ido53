@@ -25,7 +25,7 @@ static void int_readflock(struct flock *dst, struct irix_flock *src)
 	case 02: dst->l_type = F_WRLCK; break;
 	case 03: dst->l_type = F_UNLCK; break;
 	default:
-		fatal("fcntl(F_SETLKW): unknown l_type %d\n", src->l_type);
+		fatal("fcntl(F_SETLKW): unknown l_type %d", src->l_type);
 		break;
 	}
 	dst->l_whence = src->l_whence;
@@ -43,7 +43,7 @@ int lib_fcntl(int fildes, int cmd, PTR arg)
 		int_readflock(&lock, cpu_ptr(*cpu_s32(arg)));
 		return fcntl(fildes, F_SETLKW, &lock);
 	default:
-		fatal("fcntl(%d) not implemented\n", cmd);
+		fatal("fcntl(%d) not implemented", cmd);
 		break;
 	}
 	return -1;

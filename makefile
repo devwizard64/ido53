@@ -1,4 +1,5 @@
 LIB_OBJ := \
+	build/src/internal.o \
 	build/src/int_str.o \
 	build/src/int_file.o \
 	build/src/int_stat.o \

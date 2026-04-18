@@ -39,15 +39,13 @@ PTR int_writetmp(const char *str)
 	return ptr;
 }
 
-char *execpath;
-
 char *int_cvtpath(const char *pathname)
 {
 	if (!strncmp(pathname, "/usr/lib/", 9))
 	{
-		size_t n = strrchr(execpath, '/') - execpath;
-		char *path = malloc(n+strlen(pathname += 8)+1);
-		memcpy(path, execpath, n);
+		char *path, *s;
+		size_t n = (s = strrchr(execpath, '/')) ? s+1-execpath : 0;
+		memcpy(path = malloc(n+strlen(pathname += 9)+1), execpath, n);
 		strcpy(path+n, pathname);
 		return path;
 	}

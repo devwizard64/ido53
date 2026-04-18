@@ -64,7 +64,6 @@ PTR lib_malloc(size_t size)
 		*cpu_u32(info->mem+MEM_SIZ) = size;
 		return info->mem+MEM_HEAD;
 	}
-	warn("malloc(): ENOMEM\n");
 	errno = ENOMEM;
 	return NULLPTR;
 }
