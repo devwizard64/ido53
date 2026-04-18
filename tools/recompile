@@ -1611,7 +1611,7 @@ def main(argv):
 	for proc in asm.proc: proc.compile()
 
 	# program output
-	print("#include \"app.h\"\n")
+	print("#include \"irix.h\"\n")
 	print("PTR *const _bufendtab = cpu_ptr(0x%X);" % symtab["_bufendtab"])
 	print("IRIX_FILE *const __iob = cpu_ptr(0x%X);\n" % symtab["__iob"])
 	for proc in asm.proc:
