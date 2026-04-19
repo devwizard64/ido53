@@ -5,7 +5,7 @@ PTR lib_realloc(PTR ptr, size_t size)
 {
 	if (ptr)
 	{
-		MemBlock *block = MEM_BLOCK(ptr);
+		MemBlock *block = (MemBlock *)cpu_ptr(ptr)-1;
 		if (block->magic != MEM_MALLOC)
 		{
 			fatal("realloc(): bad block 0x%.8X", ptr);
@@ -16,7 +16,7 @@ PTR lib_realloc(PTR ptr, size_t size)
 			if (alc)
 			{
 				lib_memcpy(alc, ptr, block->size);
-				lib_free(ptr);
+				int_free(block);
 			}
 			return alc;
 		}

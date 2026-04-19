@@ -21,8 +21,6 @@ def sign(x, n):
 # ELF (elf.h)
 ################################################################################
 
-PT_LOAD                 = 1
-
 SHT_PROGBITS            = 1
 SHT_SYMTAB              = 2
 SHT_STRTAB              = 3
@@ -33,9 +31,11 @@ STB_LOCAL               = 0
 STB_GLOBAL              = 1
 STB_WEAK                = 2
 
-def ST_BIND(info): return info>>4
-def ST_TYPE(info): return info&0xf
-def ST_INFO(bind, type_): return (bind<<4) + (type_&0xf)
+PT_LOAD                 = 1
+
+PF_X                    = 1
+PF_W                    = 2
+PF_R                    = 4
 
 # dereference name (must be done after all SH load)
 def Elf_Name(self, symtab):
@@ -56,6 +56,18 @@ class Elf32_Phdr:
 		self.type, self.offset, self.vaddr, self.paddr, self.filesz, \
 			self.memsz, self.flags, self.align = \
 			struct.unpack(">IIIIIIII", data)
+	def load(self, f):
+		f.seek(self.offset)
+		self.data = f.read(self.filesz)
+	def get(self, addr, fmt):
+		x, = struct.unpack_from(">"+fmt, self.data, addr-self.vaddr)
+		return x
+	def lw(self, addr):
+		assert (addr & 3) == 0, "%X" % addr
+		return self.get(addr, "i")
+	def lwu(self, addr):
+		assert (addr & 3) == 0, "%X" % addr
+		return self.get(addr, "I")
 
 class Elf32_Shdr:
 	def __init__(self, data):
@@ -70,11 +82,8 @@ class Elf32_Shdr:
 		elif self.type == SHT_MIPS_LIBLIST:
 			self.num = self.size//20
 			self.data = [Elf32_Lib(f.read(20)) for i in range(self.num)]
-		else:
+		elif self.type == SHT_STRTAB:
 			self.data = f.read(self.size)
-	def get(self, addr, fmt):
-		x, = struct.unpack_from(">"+fmt, self.data, addr-self.addr)
-		return x
 
 class Elf32_Sym:
 	def __init__(self, data):
@@ -89,41 +98,31 @@ class Elf32_Lib:
 class Elf32:
 	def __init__(self, path):
 		with open(path, "rb") as f:
-			self.eh = Elf32_Ehdr(f.read(52))
-			f.seek(self.eh.phoff)
-			self.ph = [Elf32_Phdr(f.read(32)) for i in range(self.eh.phnum)]
-			f.seek(self.eh.shoff)
-			self.sh = [Elf32_Shdr(f.read(40)) for i in range(self.eh.shnum)]
-			for sh in self.sh: sh.load(f)
-			symtab = self.sh[self.eh.shstrndx].data
-			for sh in self.sh: Elf_Name(sh, symtab)
-			self.section = {sh.name: sh for sh in self.sh}
+			self.ehdr = Elf32_Ehdr(f.read(52))
+			f.seek(self.ehdr.phoff)
+			self.phdr = [Elf32_Phdr(f.read(32)) for i in range(self.ehdr.phnum)]
+			f.seek(self.ehdr.shoff)
+			self.shdr = [Elf32_Shdr(f.read(40)) for i in range(self.ehdr.shnum)]
+			self.text = None
+			self.data = None
+			for ph in self.phdr:
+				if ph.type == PT_LOAD:
+					ph.load(f)
+					if ph.flags & PF_X:
+						assert not self.text
+						self.text = ph
+					else:
+						assert not self.data
+						self.data = ph
+			for sh in self.shdr: sh.load(f)
+			symtab = self.shdr[self.ehdr.shstrndx].data
+			for sh in self.shdr: Elf_Name(sh, symtab)
+			self.section = {sh.name: sh for sh in self.shdr}
 			for name in (".dynsym", ".liblist"):
 				if name in self.section:
 					sh = self.section[name]
-					symtab = self.sh[sh.link].data
+					symtab = self.shdr[sh.link].data
 					for entry in sh.data: Elf_Name(entry, symtab)
-			sh = self.section[".text"]
-			self.ftext = sh.addr
-			self.etext = sh.addr + sh.size
-			self.fdata = 1 << 32
-			self.edata = -1
-			for name in (".data",".rodata",".got"):
-				if name in self.section:
-					sh = self.section[name]
-					self.fdata = min(self.fdata, sh.addr)
-					self.edata = max(self.edata, sh.addr+sh.size)
-	def get(self, addr, fmt):
-		for sh in self.sh:
-			if addr >= sh.addr and addr < sh.addr+sh.size:
-				return sh.get(addr, fmt)
-		return None
-	def lw(self, addr):
-		assert (addr & 3) == 0, "%X" % addr
-		return self.get(addr, "i")
-	def lwu(self, addr):
-		assert (addr & 3) == 0, "%X" % addr
-		return self.get(addr, "I")
 
 ################################################################################
 # OP
@@ -1063,11 +1062,11 @@ class Inst:
 		addr = makeop(self.get(rs), "+", imm)
 		if isinstance(addr, int) and (
 			addr >= self.elf.section[".rodata"].addr and
-			addr < self.elf.edata
+			addr < self.elf.data.vaddr+self.elf.data.filesz
 		):
 			val = {
-				"lw": self.elf.lw,
-				"lwc1": self.elf.lw,
+				"lw": self.elf.data.lw,
+				"lwc1": self.elf.data.lw,
 			}[self.op](addr)
 		else:
 			val = makeop(f, "(", addr)
@@ -1286,14 +1285,14 @@ class Asm:
 	def __init__(self, elf):
 		self.elf = elf
 		self.inst = [
-			Inst(self.elf, addr, self.elf.lwu(addr))
-			for addr in range(self.elf.ftext, self.elf.etext, 4)
+			Inst(elf, addr, elf.text.lwu(addr))
+			for addr in range(elf.ehdr.entry, elf.text.vaddr+elf.text.filesz, 4)
 		]
 		self.proc = []
 	def get(self, addr):
-		return self.inst[(addr-self.elf.ftext)//4]
+		return self.inst[(addr-self.elf.ehdr.entry)//4]
 	def set(self, addr, inst):
-		self.inst[(addr-self.elf.ftext)//4] = inst
+		self.inst[(addr-self.elf.ehdr.entry)//4] = inst
 
 	# patching
 	def patch(self, name, callback):
@@ -1325,7 +1324,9 @@ class Asm:
 			count = self.inst[i].arg[2] + 1
 			i -= 1
 		if self.inst[i].eq("lw", "at", gpr[28], None):
-			inst.jtbl += self.elf.lwu(symtab["_gp_disp"]+self.inst[i].arg[2])
+			inst.jtbl += self.elf.data.lwu(
+				symtab["_gp_disp"]+self.inst[i].arg[2]
+			)
 		elif self.inst[i].eq("lui", "at", None):
 			inst.jtbl += self.inst[i].arg[1] << 16
 		else:
@@ -1345,7 +1346,7 @@ class Asm:
 			else:
 				raise RuntimeError("bad jr (sltiu over)")
 		jtbl[inst.jtbl] = [
-			symtab["_gp_disp"] + self.elf.lw(inst.jtbl+4*i)
+			symtab["_gp_disp"] + self.elf.data.lw(inst.jtbl+4*i)
 			for i in range(count)
 		]
 	def analyze_jal(self, inst, start, i):
@@ -1363,7 +1364,7 @@ class Asm:
 							# lw t9,gp,xxx
 							# [addu t9,t9,xxx]
 							inst.arg = (
-								self.elf.lw(symtab["_gp_disp"]+imm)+offset,
+								self.elf.data.lw(symtab["_gp_disp"]+imm)+offset,
 							)
 							return
 					if rs != "t9": return
@@ -1390,7 +1391,9 @@ class Asm:
 					rt, imm = x.arg
 					if phase == 2:
 						rel += imm << 16
-						inst.arg = (self.elf.lw(symtab["_gp_disp"]+rel)+offset,)
+						inst.arg = (
+							self.elf.data.lw(symtab["_gp_disp"]+rel) + offset,
+						)
 						return
 				raise RuntimeError("jal 0x%X:%s phase=%d" % (x.addr, x, phase))
 		raise RuntimeError(inst)
@@ -1612,8 +1615,6 @@ def main(argv):
 
 	# program output
 	print("#include \"irix.h\"\n")
-	print("PTR *const _bufendtab = cpu_ptr(0x%X);" % symtab["_bufendtab"])
-	print("IRIX_FILE *const __iob = cpu_ptr(0x%X);\n" % symtab["__iob"])
 	for proc in asm.proc:
 		print("static void %s(CPU *cpu);" % addrtab[proc.addr])
 	if proc_flag: # generate __getproc
@@ -1643,16 +1644,23 @@ def main(argv):
 			"}"
 		) % len(asm.proc))
 	print("\nstatic const uint32_t data[] =\n{")
-	for addr in range(elf.fdata, elf.edata, 16): print("\t" + "".join([
-		"0x%.8X," % elf.lwu(addr) for addr in range(addr, addr+16, 4)
-	]))
+	edata = elf.data.vaddr
+	for sh in elf.shdr:
+		if sh.type == SHT_PROGBITS:
+			if sh.addr >= elf.data.vaddr: edata = max(edata, sh.addr+sh.size)
+	for addr in range(elf.data.vaddr, edata, 16):
+		print("\t" + "".join([
+			"0x%.8X," % elf.data.lwu(addr) for addr in range(addr, addr+16, 4)
+		]))
 	print("};\n\nint main(int argc, char *argv[])\n{")
 	print("\tCPU cpu = {0};")
-	print("\tlib_brk(0x%X);" % symtab["_end"])
+	print("\tlib_brk(0x%X);" % ((elf.data.vaddr+elf.data.memsz+4095) & ~4095))
 	print("\tint_writemem(0x%X, __ctype, 257);" % symtab["__ctype"])
-	print("\tmemcpy(cpu_ptr(0x%X), data, sizeof(data));" % elf.fdata)
+	print("\tmemcpy(cpu_ptr(0x%X), data, sizeof(data));" % elf.data.vaddr)
+	print("\t_bufendtab = cpu_ptr(0x%X);" % symtab["_bufendtab"])
+	print("\t__iob = cpu_ptr(0x%X);" % symtab["__iob"])
 	print("\tinit(argv[0]);")
-	print("\tcpu.sp = 0x%X;" % (elf.fdata-16))
+	print("\tcpu.sp = 0x%X;" % (elf.data.vaddr-16))
 	print("\tcpu.a0 = *cpu_s32(0x%X) = argc;" % symtab["__Argc"])
 	print("\tcpu.a1 = *cpu_s32(0x%X) = int_writearg(argv);" % symtab["__Argv"])
 	print("\tapp_main(&cpu);")

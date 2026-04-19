@@ -1,5 +1,8 @@
 #include "irix.h"
 
+PTR *_bufendtab;
+IRIX_FILE *__iob;
+
 static char *execpath;
 
 void init(char *path)
@@ -22,6 +25,5 @@ __attribute__((noreturn)) void fatal(const char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fputc('\n', stderr);
-	fflush(stderr);
 	abort();
 }

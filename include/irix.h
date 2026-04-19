@@ -98,8 +98,8 @@ typedef struct
 }
 IRIX_FILE;
 
-extern PTR *const _bufendtab;
-extern IRIX_FILE *const __iob;
+extern PTR *_bufendtab;
+extern IRIX_FILE *__iob;
 
 #define irix_stdin (&__iob[0])
 #define irix_stdout (&__iob[1])

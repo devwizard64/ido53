@@ -9,11 +9,8 @@ typedef struct
 	uint32_t magic, size;
 	short index, fd;
 	int32_t off;
-	char mem[16];
 }
 MemBlock;
-
-#define MEM_BLOCK(ptr)  ((MemBlock *)cpu_ptr(ptr-16))
 
 extern MemBlock *int_alloc(size_t size);
 extern void int_free(MemBlock *block);

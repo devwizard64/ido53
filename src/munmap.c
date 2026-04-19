@@ -15,7 +15,7 @@ static ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset)
 
 int lib_munmap(PTR addr, size_t len)
 {
-	MemBlock *block = MEM_BLOCK(addr);
+	MemBlock *block = (MemBlock *)cpu_ptr(addr)-1;
 	if (block->magic != MEM_MMAP)
 	{
 		fatal("munmap(): bad block 0x%.8X", addr);

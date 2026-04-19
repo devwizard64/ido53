@@ -24,7 +24,7 @@ PTR lib_mmap(PTR addr, size_t len, int prot, int flags, int fd, off_t off)
 	);
 	if ((block = int_alloc(len)))
 	{
-		addr = __ptr(block->mem);
+		addr = __ptr(block+1);
 		ptr = int_alcmem(addr, len);
 		if ((n = pread(fd, ptr, len, off)) < 0)
 		{

@@ -7,7 +7,7 @@ PTR lib_malloc(size_t size)
 	if ((block = int_alloc(size+32)))
 	{
 		block->magic = MEM_MALLOC;
-		return __ptr(block->mem);
+		return __ptr(block+1);
 	}
 	errno = ENOMEM;
 	return NULLPTR;

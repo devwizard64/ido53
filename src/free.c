@@ -5,7 +5,7 @@ void lib_free(PTR ptr)
 {
 	if (ptr)
 	{
-		MemBlock *block = MEM_BLOCK(ptr);
+		MemBlock *block = (MemBlock *)cpu_ptr(ptr)-1;
 		if (block->magic != MEM_MALLOC)
 		{
 			fatal("free(): bad block 0x%.8X", ptr);
