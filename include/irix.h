@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <ctype.h>
-#include <signal.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #ifdef _WIN32
@@ -244,7 +243,7 @@ extern PTR lib_sbrk(int incr);
 extern int lib_brk(PTR endds);
 extern long lib_ftell(IRIX_FILE *stream);
 extern int int_signal(int sig, PTR func, int flag);
-#define lib_signal(sig, func) int_signal(sig, func, 0)
+#define lib_signal(sig, func) int_signal(sig, func, 1)
 extern irix_clock_t lib_times(struct irix_tms *buffer);
 extern double lib_atof(PTR nptr);
 extern int lib_fcntl(int fildes, int cmd, PTR arg);
@@ -287,7 +286,7 @@ extern int lib_vfscanf(IRIX_FILE *strm, PTR format, PTR args);
 extern int lib_munmap(PTR addr, size_t len);
 extern int lib_kill(pid_t pid, int sig);
 extern int lib_utime(PTR path, const struct irix_utimbuf *times);
-#define lib_sigset(sig, disp) int_signal(sig, disp, 1)
+#define lib_sigset(sig, disp) int_signal(sig, disp, 0)
 extern int lib_creat(PTR path, int mode);
 extern PTR lib_ctime(const irix_time_t *clock);
 extern PTR lib_tmpnam(PTR s);

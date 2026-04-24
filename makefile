@@ -132,10 +132,8 @@ build/%.c: donor/%
 build/libirix.a: $(IRIX_OBJ)
 	$(AR) rc $@ $(IRIX_OBJ)
 
-$(IRIX_OBJ): CFLAGS += -Wpedantic
-build/src/signal.o: CFLAGS += -Wno-deprecated-declarations
 build/src/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wpedantic -MMD -c -o $@ $<
 
 -include $(IRIX_OBJ:.o=.d)

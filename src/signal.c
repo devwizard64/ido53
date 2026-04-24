@@ -1,11 +1,12 @@
 #include "irix.h"
+#include <signal.h>
 
 static PTR sigtab[64];
 
 static void int_sig(int signum)
 {
-	CPU cpu;
 	int sig;
+	CPU cpu = {0};
 	switch (signum)
 	{
 	case SIGINT:  sig =  2; break;
@@ -16,16 +17,18 @@ static void int_sig(int signum)
 	case SIGTERM: sig = 15; break;
 	default: return;
 	}
-	memset(&cpu, 0, sizeof(CPU));
 	cpu.sp = MEM_START + STACK_SIZE - 16;
 	__getproc(sigtab[(cpu.a0 = sig)-1])(&cpu);
 }
 
 int int_signal(int sig, PTR func, int flag)
 {
-	PTR prev;
 	int signum;
 	void (*disp)(int);
+	PTR prev;
+#ifndef _WIN32
+	struct sigaction sa, osa;
+#endif
 	switch (sig)
 	{
 	case  2: signum = SIGINT; break;
@@ -34,7 +37,7 @@ int int_signal(int sig, PTR func, int flag)
 	case  8: signum = SIGFPE; break;
 	case 11: signum = SIGSEGV; break;
 	case 15: signum = SIGTERM; break;
-	default: return 0;
+	default: errno = EINVAL; return -1;
 	}
 	prev = sigtab[sig-1];
 	switch (func)
@@ -45,13 +48,16 @@ int int_signal(int sig, PTR func, int flag)
 	}
 #ifdef _WIN32
 	(void)flag;
-	disp = signal(signum, disp);
-#else
-	if (flag)   disp = sigset(signum, disp);
-	else        disp = signal(signum, disp);
-#endif
-	if (disp == SIG_ERR) return -1;
+	if ((disp = signal(signum, disp)) == SIG_ERR) return -1;
 	if (disp == SIG_DFL) return 0;
 	if (disp == SIG_IGN) return 1;
+#else
+	sa.sa_handler = disp;
+	sa.sa_flags = flag ? SA_NODEFER|SA_RESETHAND : 0;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(signum, &sa, &osa)) return -1;
+	if (osa.sa_handler == SIG_DFL) return 0;
+	if (osa.sa_handler == SIG_IGN) return 1;
+#endif
 	return prev;
 }
