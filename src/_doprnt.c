@@ -1,5 +1,6 @@
 #include "irix.h"
 #include "int_fmt.h"
+#include <stdio.h>
 
 int int_getfmt(char *fmt, PTR *format)
 {
@@ -39,7 +40,7 @@ static int prout(IRIX_FILE *stream, const char *str)
 	int i;
 	for (i = 0; str[i] != '\0'; i++)
 	{
-		if (lib_fputc(str[i], stream) == EOF) break;
+		if (lib_fputc(str[i], stream) < 0) break;
 	}
 	return i;
 }
@@ -57,7 +58,7 @@ int lib__doprnt(PTR format, PTR in_args, IRIX_FILE *iop)
 			switch (int_getfmt(fmt, &format))
 			{
 			case FMT_PERCENT:
-				if (lib_fputc('%', iop) != EOF) n++;
+				if (lib_fputc('%', iop) >= 0) n++;
 				break;
 			case FMT_SINT:
 				snprintf(buf, sizeof(buf), fmt, *cpu_s32(in_args));
@@ -98,7 +99,7 @@ int lib__doprnt(PTR format, PTR in_args, IRIX_FILE *iop)
 		}
 		else
 		{
-			if (lib_fputc(ch, iop) != EOF) n++;
+			if (lib_fputc(ch, iop) >= 0) n++;
 		}
 	}
 	return n;

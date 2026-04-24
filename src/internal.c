@@ -1,4 +1,6 @@
 #include "irix.h"
+#include <stdarg.h>
+#include <stdio.h>
 
 PTR *_bufendtab;
 IRIX_FILE *__iob;

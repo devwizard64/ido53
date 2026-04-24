@@ -10,7 +10,7 @@ int lib_setvbuf(IRIX_FILE *stream, PTR buf, int type, size_t size)
 	}
 	if (size < SBFSIZ)
 	{
-		size = BUFSIZ+SBFSIZ;
+		size = IRIX_BUFSIZ+SBFSIZ;
 		buf = NULLPTR;
 	}
 	if (!buf)

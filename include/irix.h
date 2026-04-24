@@ -4,9 +4,7 @@
 #define _GNU_SOURCE
 #include <stddef.h>
 #include <stdint.h>
-#include <stdarg.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>

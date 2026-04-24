@@ -9,7 +9,7 @@ int lib_fwrite(PTR ptr, size_t size, size_t nitems, IRIX_FILE *stream)
 	{
 		for (i = 0; i < size; i++)
 		{
-			if (lib_fputc(c = *cpu_s8(ptr++), stream) == EOF) return n;
+			if (lib_fputc(c = *cpu_s8(ptr++), stream) < 0) return n;
 			if (stream->_flag & IOLBF && c == '\n') lib_fflush(stream);
 		}
 	}

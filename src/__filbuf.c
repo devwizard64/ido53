@@ -20,7 +20,7 @@ int lib___filbuf(IRIX_FILE *stream)
 		else
 		{
 			errno = EBADF;
-			return EOF;
+			return -1;
 		}
 	}
 	if (!stream->_base)
@@ -44,12 +44,12 @@ int lib___filbuf(IRIX_FILE *stream)
 	else if (n == 0)
 	{
 		stream->_flag |= IOEOF;
-		c = EOF;
+		c = -1;
 	}
 	else
 	{
 		stream->_flag |= IOERR;
-		c = EOF;
+		c = -1;
 	}
 	return c;
 }

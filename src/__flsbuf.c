@@ -16,7 +16,7 @@ int lib___flsbuf(int c, IRIX_FILE *stream)
 		else
 		{
 			errno = EBADF;
-			return EOF;
+			return -1;
 		}
 	}
 	if (!stream->_base)
@@ -28,13 +28,13 @@ int lib___flsbuf(int c, IRIX_FILE *stream)
 	}
 	else
 	{
-		if (lib_fflush(stream)) return EOF;
+		if (lib_fflush(stream)) return -1;
 	}
 	--stream->_cnt;
 	*cpu_u8(stream->_ptr++) = c;
 	if (stream->_flag & IONBF)
 	{
-		if (lib_fflush(stream)) return EOF;
+		if (lib_fflush(stream)) return -1;
 		stream->_cnt = 0;
 	}
 	return (unsigned char)c;

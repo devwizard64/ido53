@@ -2,7 +2,7 @@
 
 int lib_ungetc(int c, IRIX_FILE *stream)
 {
-	if (c == EOF || stream->_base == stream->_ptr) return EOF;
+	if (c == -1 || stream->_base == stream->_ptr) return -1;
 	stream->_flag &= ~IOEOF;
 	stream->_ptr--;
 	stream->_cnt++;

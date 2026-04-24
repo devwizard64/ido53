@@ -1,4 +1,5 @@
 #include "irix.h"
+#include <stdio.h>
 
 int lib_rename(PTR old, PTR new)
 {

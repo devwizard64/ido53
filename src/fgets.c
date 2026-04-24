@@ -6,7 +6,7 @@ PTR lib_fgets(PTR s, int n, IRIX_FILE *stream)
 	while (--n > 0)
 	{
 		int c = lib_fgetc(stream);
-		if (c == EOF)
+		if (c < 0)
 		{
 			if (result == s) result = NULLPTR;
 			break;

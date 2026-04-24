@@ -20,7 +20,7 @@ int lib_fflush(IRIX_FILE *stream)
 				if (n < 0)
 				{
 					stream->_flag |= IOERR;
-					return EOF;
+					return -1;
 				}
 				buf += n;
 				cnt -= n;

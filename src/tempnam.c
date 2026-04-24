@@ -1,4 +1,5 @@
 #include "irix.h"
+#include <stdio.h>
 #include <fcntl.h>
 
 PTR lib_tempnam(PTR dir, PTR pfx)
