@@ -1637,7 +1637,7 @@ def main(argv):
 			"\t{\n"
 			"\t\tif (len > 1) len /= 2;\n"
 			"\t\tif (addr >= entry[len].addr) entry += len;\n"
-			"\t\telse if (len == 1) fatal(\"no proc for 0x%%X\\n\", addr);\n"
+			"\t\telse if (len == 1) fatal(\"no proc for 0x%%X\", addr);\n"
 			"\t}\n"
 			"\twhile (addr != entry->addr && addr != entry->addr+12);\n"
 			"\treturn entry->proc;\n"
