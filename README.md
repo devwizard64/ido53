@@ -11,13 +11,9 @@ Static recompilation involves converting a binary into C code that may be compil
 ## Building
 Install dependencies (Debian):
 ```
-apt install make python3 gcc
+apt install make binutils gcc python3
 ```
 Build:
 ```
 make
-```
-Most platforms should work with `mmap` functionality.  If the software builds, but you have issues running the software, you may try removing `-DMMAP`.  You will have to rebuild the software from scratch if you change these flags:
-```
-make clean && make
 ```
