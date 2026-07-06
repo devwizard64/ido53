@@ -1,4 +1,5 @@
 #include "irix.h"
+#include <signal.h>
 
 int lib_kill(pid_t pid, int sig)
 {
